@@ -9,6 +9,8 @@ export const config = {
   dataDir: resolve(env.DATA_DIR ?? './data'),
   /** Hinter nginx: X-Forwarded-* auswerten. */
   trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
+  /** Öffentliche Adresse für QR-Code und Anzeige, z. B. https://quizzlybear.blanke.nrw */
+  publicUrl: env.PUBLIC_URL?.replace(/\/$/, '') || undefined,
   /** Sicherheits-Header selbst senden (lokaler CSP-Test; produktiv macht das nginx). */
   securityHeaders: env.SECURITY_HEADERS === '1',
   /** Legt beim ersten Start einen Quizmaster mit Admin-Rechten an, wenn es noch keinen gibt. */

@@ -1,0 +1,56 @@
+/* Handy-App: Hochformat, mobile first. Die Seite scrollt nicht – alles passt in den sichtbaren Bereich. */
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100%;
+}
+
+.phone {
+  position: relative;
+  height: 100dvh;
+  max-width: 34rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: max(0.7rem, env(safe-area-inset-top)) max(0.8rem, env(safe-area-inset-right)) 0
+    max(0.8rem, env(safe-area-inset-left));
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+.center {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.big {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.muted {
+  color: var(--ink-2);
+}

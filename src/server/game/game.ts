@@ -152,9 +152,13 @@ export class Game {
     if (!p || p.connected === connected) return;
     p.connected = connected;
     this.touch();
-    this.sendHost();
-    if (connected) this.sendPlayer(p);
-    else this.checkAllAnswered();
+    if (this.phase === 'lobby') {
+      this.broadcast(); // alle sehen, wie die Lobby sich füllt
+    } else {
+      this.sendHost();
+      if (connected) this.sendPlayer(p);
+      else this.checkAllAnswered();
+    }
   }
 
   kick(id: string) {

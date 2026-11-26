@@ -1,6 +1,7 @@
 // HTTP-Teil: Login, Quiz-Verwaltung, Spiele starten, statische Dateien.
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { existsSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type { Quiz } from '../shared/quiz';
 import {
@@ -51,7 +52,8 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
   app.use('/api', (req, res, next) => {
     if (req.method === 'GET' || req.method === 'HEAD') return next();
     const origin = req.headers.origin;
-    if (origin && new URL(origin).host !== req.headers.host) {
+    const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0].trim() ?? req.headers.host;
+    if (origin && new URL(origin).host !== host) {
       return void res.status(403).json({ error: 'Fremde Herkunft.' });
     }
     next();
@@ -69,6 +71,17 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     } catch {
       res.status(503).json({ ok: false });
     }
+  });
+
+  /** Adresse, unter der Handys das Spiel erreichen (für QR-Code und Anzeige auf dem Host). */
+  app.get('/api/info', (_req, res) => {
+    const lan: string[] = [];
+    if (!config.prod) {
+      for (const list of Object.values(networkInterfaces())) {
+        for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) lan.push(a.address);
+      }
+    }
+    res.json({ publicUrl: config.publicUrl ?? null, lan });
   });
 
   // ------------------------------------------------------------------- Login

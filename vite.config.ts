@@ -11,7 +11,7 @@ const api = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 export default defineConfig({
   root: 'src/web',
   publicDir: 'public',
-  plugins: [svelte()],
+  plugins: [svelte({ configFile: resolve('svelte.config.js') })],
   build: {
     outDir: '../../dist/web',
     emptyOutDir: true,
@@ -28,7 +28,8 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
-      '/api': api,
+      // xfwd: Der Server prüft die Herkunft schreibender Anfragen gegen den ursprünglichen Host
+      '/api': { target: api, xfwd: true },
       '/img': api,
       '/schema': api,
       '/socket.io': { target: api, ws: true },

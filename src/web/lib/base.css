@@ -1,0 +1,260 @@
+/* QuizzlyBear – gemeinsame Design-Basis für Handy, Host-Screen und Quizmaster.
+   Sticker-Look: kräftige Farben, dicke dunkle Konturen, harte Schlagschatten (kein Blur),
+   runde Ecken. Animiert wird ausschließlich über transform und opacity. */
+
+:root {
+  --ink: #2e1a0b;
+  --ink-2: #6a4a2c;
+  --paper: #fffbf0;
+  --cream: #fff0c7;
+  --honey: #ffc533;
+  --honey-light: #ffe07a;
+  --honey-deep: #f59e0b;
+  --amber: #d97706;
+
+  /* richtig / falsch – immer zusätzlich mit Symbol (✓ / ✗) */
+  --ok: #00805a;
+  --ok-bg: #d3f5e4;
+  --bad: #c2410c;
+  --bad-bg: #ffe2d3;
+
+  /* Antwortfarben: an Okabe-Ito angelehnt, bei Farbfehlsichtigkeit unterscheidbar.
+     Jede Farbe hat zusätzlich ein festes Symbol (siehe Shape.svelte). */
+  --a0: #0072b2;
+  --a1: #d55e00;
+  --a2: #008f68;
+  --a3: #a8468f;
+  --a4: #56b4e9;
+  --a5: #454a66;
+
+  --line: 0.19rem;
+  --r-s: 0.8rem;
+  --r-m: 1.3rem;
+  --r-l: 2rem;
+  --drop: 0 0.3rem 0 var(--ink);
+  --drop-l: 0 0.5rem 0 var(--ink);
+  --font: 'Fredoka Variable', 'Fredoka', ui-rounded, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--honey);
+  line-height: 1.25;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+img {
+  max-width: 100%;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Bausteine ---------- */
+
+.card {
+  background: var(--paper);
+  border: var(--line) solid var(--ink);
+  border-radius: var(--r-m);
+  box-shadow: var(--drop);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.7em 1.3em;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--r-m);
+  background: var(--a0);
+  color: #fff;
+  font-weight: 650;
+  font-size: 1.15rem;
+  box-shadow: var(--drop);
+  transition:
+    transform 0.12s var(--ease-out),
+    box-shadow 0.12s var(--ease-out),
+    opacity 0.15s;
+  user-select: none;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0.22rem);
+  box-shadow: 0 0.08rem 0 var(--ink);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn:focus-visible,
+input:focus-visible,
+button:focus-visible {
+  outline: 0.2rem solid var(--a4);
+  outline-offset: 0.15rem;
+}
+.btn.honey {
+  background: var(--honey);
+  color: var(--ink);
+}
+.btn.plain {
+  background: var(--paper);
+  color: var(--ink);
+}
+.btn.ok {
+  background: var(--ok);
+}
+.btn.bad {
+  background: var(--bad);
+}
+.btn.small {
+  font-size: 0.95rem;
+  padding: 0.45em 0.9em;
+  border-radius: var(--r-s);
+  box-shadow: 0 0.2rem 0 var(--ink);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.25em 0.8em;
+  border: var(--line) solid var(--ink);
+  border-radius: 99rem;
+  background: var(--paper);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.field {
+  width: 100%;
+  padding: 0.65em 0.9em;
+  border: var(--line) solid var(--ink);
+  border-radius: var(--r-m);
+  background: #fff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.field::placeholder {
+  color: #b79c7c;
+  font-weight: 500;
+}
+
+/* Antwortfarben: setzen --c (Fläche) und --c-ink (Schrift/Symbol) */
+.opt-0 { --c: var(--a0); --c-ink: #fff; }
+.opt-1 { --c: var(--a1); --c-ink: #fff; }
+.opt-2 { --c: var(--a2); --c-ink: #fff; }
+.opt-3 { --c: var(--a3); --c-ink: #fff; }
+.opt-4 { --c: var(--a4); --c-ink: var(--ink); }
+.opt-5 { --c: var(--a5); --c-ink: #fff; }
+
+/* ---------- Animationen ---------- */
+
+@keyframes pop-in {
+  from { transform: scale(0.4) rotate(var(--tilt, 0deg)); opacity: 0; }
+  to { transform: scale(1) rotate(var(--tilt, 0deg)); opacity: 1; }
+}
+@keyframes rise-in {
+  from { transform: translateY(1.6rem) rotate(var(--tilt, 0deg)); opacity: 0; }
+  to { transform: translateY(0) rotate(var(--tilt, 0deg)); opacity: 1; }
+}
+@keyframes drop-in {
+  from { transform: translateY(-2.5rem) rotate(calc(var(--tilt, 0deg) - 4deg)); opacity: 0; }
+  to { transform: translateY(0) rotate(var(--tilt, 0deg)); opacity: 1; }
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-0.6rem) rotate(calc(var(--tilt, 0deg) + 2deg)); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-0.5rem) rotate(-2deg); }
+  40% { transform: translateX(0.45rem) rotate(2deg); }
+  60% { transform: translateX(-0.3rem) rotate(-1deg); }
+  80% { transform: translateX(0.2rem); }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1) rotate(var(--tilt, 0deg)); }
+  50% { transform: scale(1.06) rotate(var(--tilt, 0deg)); }
+}
+@keyframes drain {
+  from { transform: scaleX(var(--from, 1)); }
+  to { transform: scaleX(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pop-in { animation: pop-in 0.45s var(--ease-pop) both; }
+.rise-in { animation: rise-in 0.45s var(--ease-out) both; }
+.drop-in { animation: drop-in 0.5s var(--ease-pop) both; }
+.bob { animation: bob 3.6s ease-in-out infinite; }
+.wiggle { animation: wiggle 1.2s ease-in-out infinite; }
+.shake { animation: shake 0.5s ease-in-out both; }
+.pulse { animation: pulse 1.1s ease-in-out infinite; }
+
+.sticker {
+  display: block;
+  height: auto;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
