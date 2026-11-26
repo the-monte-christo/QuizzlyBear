@@ -5,7 +5,11 @@
 //   node scripts/build-assets.mjs --debug    zusätzlich PNG-Vorschau nach art/debug
 //
 // Quellen:  art/src/bear-<pose>.jpg   → bear-<pose>.webp (+ -s.webp fürs Handy)
-//           art/src/sheet-<name>.jpg  → Einzelsticker <name>-<nr>.webp (per Zusammenhangsanalyse)
+//           art/src/sheet-<name>.jpg  → Einzelsticker <name>-<nr>.webp (per Zusammenhangsanalyse),
+//                                       je Sticker drei Tiefenebenen: -far (klein, blass, unscharf),
+//                                       ohne Zusatz (Mitte) und -near (groß, leicht unscharf).
+//                                       Schlagschatten und Unschärfe sind eingerechnet – kein CSS-Filter nötig.
+//           art/src/bg-<name>.jpg     → bg-host.webp (16:9) und bg-phone.webp (Hochformat-Ausschnitt)
 import sharp from 'sharp';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join, basename, extname } from 'node:path';
@@ -155,10 +159,81 @@ async function writeWebp(raw, w, h, name, size, quality = 86) {
   return buf.length;
 }
 
+const DEPTH = [
+  { suffix: '-far', size: 150, blur: 1.5, saturation: 0.78, brightness: 1.1, quality: 78 },
+  { suffix: '', size: 320, blur: 0, saturation: 1, brightness: 1, quality: 84 },
+  { suffix: '-near', size: 620, blur: 4.2, saturation: 1, brightness: 1, quality: 76 },
+];
+
+/** Sticker mit weichem Schlagschatten; optional unscharf und blasser (für die Tiefenebenen). */
+async function writeDeco(raw, w, h, name, { suffix, size, blur, saturation, brightness, quality }) {
+  const top = await sharp(raw, { raw: { width: w, height: h, channels: 4 } })
+    .trim()
+    .resize({ width: size, height: size, fit: 'inside' })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  const sw = top.info.width, sh = top.info.height;
+  const pad = Math.round(Math.max(sw, sh) * 0.16);
+  const off = Math.round(pad * 0.5); // Schatten fällt nach unten
+  const W = sw + pad * 2, H = sh + pad * 2;
+  // Schatten = Silhouette des Stickers, nach unten versetzt und weichgezeichnet
+  const rgba = await sharp(top.data).ensureAlpha().raw().toBuffer();
+  const mask = Buffer.alloc(W * H);
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) mask[(y + pad + off) * W + x + pad] = rgba[(y * sw + x) * 4 + 3];
+  }
+  const soft = await sharp(mask, { raw: { width: W, height: H, channels: 1 } })
+    .blur(Math.max(sw, sh) * 0.04)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const step = soft.info.channels;
+  const shadow = Buffer.alloc(W * H * 4);
+  for (let i = 0; i < W * H; i++) {
+    shadow[i * 4] = 0x2e;
+    shadow[i * 4 + 1] = 0x1a;
+    shadow[i * 4 + 2] = 0x0b;
+    shadow[i * 4 + 3] = Math.round(soft.data[i * step] * 0.36);
+  }
+  const flat = await sharp(shadow, { raw: { width: W, height: H, channels: 4 } })
+    .composite([{ input: top.data, left: pad, top: pad }])
+    .png()
+    .toBuffer();
+  let img = sharp(flat);
+  if (blur) img = img.blur(blur);
+  if (saturation !== 1 || brightness !== 1) img = img.modulate({ saturation, brightness });
+  const buf = await img.webp({ quality, alphaQuality: 85, effort: 6 }).toBuffer();
+  await writeFile(join(OUT, `${name}${suffix}.webp`), buf);
+  if (DEBUG) {
+    await mkdir('art/debug', { recursive: true });
+    await sharp(buf).flatten({ background: '#9ec77a' }).png().toFile(join('art/debug', `${name}${suffix}.png`));
+  }
+  return buf.length;
+}
+
+/** Hintergrundmotiv: volle Breite für den Host, Hochformat-Ausschnitt fürs Handy. */
+async function writeBackground(file) {
+  const meta = await sharp(file).metadata();
+  const host = await sharp(file).resize({ width: 2560 }).webp({ quality: 74, effort: 6 }).toBuffer();
+  await writeFile(join(OUT, 'bg-host.webp'), host);
+  // Ausschnitt links der Mitte: unten Honigglas und Waben, oben Licht
+  const cw = Math.round((meta.height * 9) / 16);
+  const phone = await sharp(file)
+    .extract({ left: Math.round(meta.width * 0.095), top: 0, width: cw, height: meta.height })
+    .resize({ width: 720 })
+    .webp({ quality: 72, effort: 6 })
+    .toBuffer();
+  await writeFile(join(OUT, 'bg-phone.webp'), phone);
+  console.log(`bg-host.webp ${(host.length / 1024).toFixed(0)} kB, bg-phone.webp ${(phone.length / 1024).toFixed(0)} kB`);
+}
+
 await mkdir(OUT, { recursive: true });
 const files = (await readdir(SRC)).filter((f) => /\.(jpe?g|png)$/i.test(f)).sort();
 for (const f of files) {
   const name = basename(f, extname(f));
+  if (name.startsWith('bg-')) {
+    await writeBackground(join(SRC, f));
+    continue;
+  }
   const cut = await cutout(join(SRC, f), ISLANDS.has(name));
   if (name.startsWith('sheet-')) {
     const prefix = name.slice(6);
@@ -175,8 +250,10 @@ for (const f of files) {
           cut.px.copy(raw, (y * bw + x) * 4, i * 4, i * 4 + 4);
         }
       }
-      const bytes = await writeWebp(raw, bw, bh, `${prefix}-${String(nr).padStart(2, '0')}`, 320, 84);
-      console.log(`${prefix}-${String(nr).padStart(2, '0')}.webp  ${bw}x${bh}  ${(bytes / 1024).toFixed(1)} kB`);
+      const id = `${prefix}-${String(nr).padStart(2, '0')}`;
+      const sizes = [];
+      for (const depth of DEPTH) sizes.push(`${depth.suffix || 'mid'} ${((await writeDeco(raw, bw, bh, id, depth)) / 1024).toFixed(1)} kB`);
+      console.log(`${id}: ${sizes.join(', ')}`);
     }
   } else {
     const big = await writeWebp(Buffer.from(cut.px), cut.w, cut.h, name, 760);

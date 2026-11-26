@@ -63,7 +63,7 @@
     align-items: center;
   }
   .logo :global(.sticker) {
-    width: 9.5rem;
+    width: min(9.5rem, 22dvh);
     --tilt: -3deg;
   }
   h1 {
@@ -71,9 +71,13 @@
     font-weight: 700;
     letter-spacing: -0.02em;
     transform: rotate(-2deg);
-    margin-top: -0.3rem;
+    margin-top: 0.5rem;
+    padding: 0 1.1rem;
+    border: var(--line) solid var(--ink);
+    border-radius: 99rem;
+    background: var(--paper);
+    box-shadow: var(--drop);
     color: var(--ink);
-    text-shadow: 0.12rem 0.14rem 0 #fff;
   }
   h1 span {
     color: var(--a1);

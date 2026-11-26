@@ -178,7 +178,7 @@
     bottom: 0;
     width: 13rem;
     --tilt: 3deg;
-    animation-delay: 0.4s;
+    --delay: 0.4s;
   }
 
   .side {
@@ -251,6 +251,6 @@
     bottom: -3rem;
     width: 8.5rem;
     --tilt: 8deg;
-    animation-delay: 0.8s;
+    --delay: 0.8s;
   }
 </style>

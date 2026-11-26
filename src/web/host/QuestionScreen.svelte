@@ -198,7 +198,7 @@
     width: 9.4rem;
     translate: 0 -50%;
     --tilt: 6deg;
-    animation-delay: 0.7s;
+    --delay: 0.7s;
   }
   .bubble {
     display: block;

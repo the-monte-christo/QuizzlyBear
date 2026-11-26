@@ -170,7 +170,7 @@
   const date = (ms: number) => new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 </script>
 
-<Backdrop variant="phone" deco={false} />
+<Backdrop variant="host" mood="none" />
 
 <div class="page">
   <header class="top">

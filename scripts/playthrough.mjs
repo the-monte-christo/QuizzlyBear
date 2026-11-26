@@ -58,7 +58,10 @@ for (let i = 0; i < PLAYERS; i++) {
   const page = await ctx.newPage();
   watch(page, NAMES[i]);
   await page.goto(`${BASE}/?pin=${pin}`);
-  if (i === 0) await snap(page, 'phone-join');
+  if (i === 0) {
+    await page.waitForTimeout(900);
+    await snap(page, 'phone-join');
+  }
   await page.fill('input[autocomplete="nickname"]', NAMES[i]);
   await page.click('button:has-text("Los geht")');
   await page.waitForSelector('text=Du bist dabei');

@@ -44,11 +44,11 @@
     {#if game.locked}
       <span class="pill lock pop-in"><Icon name="lock" /> {lockText}</span>
     {:else if game.answer && !game.answer.sent}
-      <span class="muted">Sende …</span>
+      <span class="plate">Sende …</span>
     {:else if game.answer && (q.type === 'mcsa' || q.type === 'poll')}
       <span class="pill sent pop-in"><Icon name="check" /> Antwort ist drin – ändern ist erlaubt</span>
     {:else if !game.answer}
-      <span class="muted">{TYPE_LABELS[q.type].hint}</span>
+      <span class="plate">{TYPE_LABELS[q.type].hint}</span>
     {/if}
   </div>
 </div>

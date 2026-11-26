@@ -129,8 +129,15 @@
   }
   /* Auswahl: nicht gewählte treten zurück, die gewählte bekommt Haken + Innenrahmen */
   .has-choice .opt:not(.on) {
-    opacity: 0.45;
     transform: scale(0.96);
+  }
+  /* aufgehellt statt durchsichtig: Der Hintergrund scheint nicht durch, der Text bleibt lesbar */
+  .has-choice .opt:not(.on)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(255, 251, 240, 0.6);
   }
   .opt.on {
     outline: 0.28rem solid #fff;

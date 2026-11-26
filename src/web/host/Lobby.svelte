@@ -60,7 +60,7 @@
   </section>
 
   <Sticker name="bear-wave" class="bear bob" />
-  <Sticker name="herry-hey" class="herry" />
+  <Sticker name="herry-hey" class="herry" ground={false} />
 </div>
 
 <style>
@@ -213,10 +213,13 @@
     text-decoration: line-through;
   }
   .waiting {
-    font-size: 2.4rem;
+    align-self: flex-start;
+    margin-top: 1.5rem;
+    padding: 0.4em 1em;
+    border-radius: 99rem;
+    background: rgba(255, 251, 240, 0.88);
+    font-size: 2.2rem;
     font-weight: 600;
-    color: var(--ink-2);
-    padding-top: 2rem;
   }
   .lobby :global(.bear) {
     position: absolute;

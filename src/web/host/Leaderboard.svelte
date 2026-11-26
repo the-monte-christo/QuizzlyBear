@@ -48,7 +48,7 @@
 
   <Sticker name="bear-think" class="bear bob" />
   <!-- Herry hängt frech an der Ecke der Rangliste -->
-  <Sticker name="herry-tongue" class="herry wiggle" />
+  <Sticker name="herry-tongue" class="herry wiggle" ground={false} />
 </div>
 
 <style>

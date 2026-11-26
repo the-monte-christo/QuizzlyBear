@@ -77,7 +77,7 @@
 
 <svelte:window onkeydown={onkey} />
 
-<Backdrop variant="host" />
+<Backdrop variant="host" mood={view === 'question' || view === 'reveal' ? 'calm' : 'full'} />
 
 <div class="screen">
   {#if view === 'gone'}
@@ -136,7 +136,7 @@
         {#key count}
           <div class="num pop-in">{count}</div>
         {/key}
-        <p class="hint">{TYPE_LABELS[s.question.type].hint}</p>
+        <p class="hint plate">{TYPE_LABELS[s.question.type].hint}</p>
         <!-- Herry schießt einmal quer durchs Bild -->
         {#key s.question.index}
           <img class="swim" src="/art/herry-swim.webp" alt="" />
@@ -177,17 +177,24 @@
     z-index: 5;
   }
   .brand {
+    justify-self: start;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    font-size: 2.3rem;
+    gap: 0.5rem;
+    padding: 0.1rem 1.2rem 0.1rem 0.3rem;
+    border: 0.2rem solid var(--ink);
+    border-radius: 99rem;
+    background: var(--paper);
+    box-shadow: var(--drop);
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     transform: rotate(-1.5deg);
     transform-origin: left center;
   }
   .brand img {
-    width: 4rem;
+    width: 3.4rem;
+    margin: -0.5rem 0 -0.3rem -0.6rem;
   }
   .brand b {
     color: var(--a1);
@@ -222,12 +229,11 @@
     border-radius: 50%;
     background: var(--paper);
     font-size: 1.5rem;
-    opacity: 0.55;
-    transition: opacity 0.2s;
+    box-shadow: var(--drop);
   }
   .tool:hover,
   .tool:focus-visible {
-    opacity: 1;
+    background: var(--honey-light);
   }
   .menu {
     position: absolute;
@@ -297,14 +303,14 @@
     border: 0.5rem solid var(--ink);
     border-radius: 50%;
     background: var(--paper);
-    box-shadow: 0 0.9rem 0 var(--ink);
+    box-shadow: 0 0.9rem 0 var(--ink), 0 2.4rem 3.2rem -0.4rem var(--soft);
     font-size: 17rem;
     font-weight: 700;
     line-height: 1;
     --tilt: -4deg;
   }
   .hint {
-    font-size: 2.6rem;
+    font-size: 2.4rem;
     font-weight: 650;
   }
   .swim {

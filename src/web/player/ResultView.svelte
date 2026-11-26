@@ -60,9 +60,7 @@
 
 <style>
   .center :global(.hero) {
-    width: min(11.5rem, 46vw);
-    max-height: 32dvh;
-    object-fit: contain;
+    width: min(11.5rem, 46vw, 26dvh);
     --tilt: -3deg;
   }
   .verdict {

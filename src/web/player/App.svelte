@@ -24,11 +24,11 @@
   const medal = (rank: number) => (rank === 1 ? 'bear-trophy' : rank <= 3 ? 'bear-cheer' : 'bear-wave');
 </script>
 
-<Backdrop variant="phone" deco={view === 'join' || view === 'lobby' || view === 'final'} />
+<Backdrop variant="phone" mood={view === 'join' || view === 'lobby' || view === 'final' ? 'full' : 'none'} />
 
 <main class="phone">
   {#if game.restoring && !s}
-    <div class="center"><Sticker name="bear-think" small class="mascot bob" /><p class="big">Verbinde …</p></div>
+    <div class="center"><Sticker name="bear-think" small class="mascot bob" /><p class="big plate">Verbinde …</p></div>
   {:else if !s}
     <Join />
   {:else if view === 'lobby'}
@@ -39,7 +39,7 @@
         <p class="muted">Dein Name steht jetzt auf dem großen Bildschirm.</p>
       </div>
       <p class="pill"><Icon name="users" /> {s.playerCount} im Spiel</p>
-      <p class="muted">Gleich geht's los …</p>
+      <p class="plate">Gleich geht's los …</p>
     </div>
   {:else if view === 'countdown' && s.question}
     <div class="center">
@@ -47,8 +47,10 @@
       {#key count}
         <div class="count pop-in">{count}</div>
       {/key}
-      <p class="big">{TYPE_LABELS[s.question.type].label}</p>
-      <p class="muted">{TYPE_LABELS[s.question.type].hint}</p>
+      <div class="card note">
+        <p class="big">{TYPE_LABELS[s.question.type].label}</p>
+        <p class="muted">{TYPE_LABELS[s.question.type].hint}</p>
+      </div>
     </div>
   {:else if view === 'question' && s.question}
     <QuestionView />
@@ -108,9 +110,7 @@
 
 <style>
   .phone :global(.mascot) {
-    width: min(11rem, 44vw);
-    max-height: 30dvh;
-    object-fit: contain;
+    width: min(11rem, 44vw, 25dvh);
     --tilt: -3deg;
   }
   .note {
