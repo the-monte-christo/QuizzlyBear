@@ -20,6 +20,8 @@ import {
 import { config } from './config';
 import type { Db, QuizRow } from './db';
 import type { GameManager } from './game/manager';
+import { removeUnusedImages } from './quiz/images';
+import { exportQuiz, ImportFailure, importQuiz } from './quiz/import';
 
 export interface AppDeps {
   db: Db;
@@ -177,6 +179,72 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     const row = db.quiz(Number(req.params.id));
     if (!row || !canSee(req, row)) return void res.status(404).json({ error: 'Quiz nicht gefunden.' });
     res.json({ ...summary(row), quiz: JSON.parse(row.json) });
+  });
+
+  // Uploads und Aufräumen laufen nacheinander, damit kein Bild eines parallelen Imports verschwindet
+  let queue: Promise<unknown> = Promise.resolve();
+  const serial = <T>(job: () => Promise<T>): Promise<T> => {
+    const run = queue.then(job, job);
+    queue = run.catch(() => {});
+    return run;
+  };
+  const cleanupImages = () => removeUnusedImages(config.dataDir, db.usedImages()).catch(() => 0);
+
+  const upload = express.raw({
+    type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream', 'application/json'],
+    limit: config.maxUploadBytes,
+  });
+
+  const handleUpload = async (req: Request, res: Response, replace?: QuizRow) => {
+    if (!Buffer.isBuffer(req.body)) return void res.status(400).json({ error: 'Bitte eine ZIP- oder JSON-Datei hochladen.' });
+    try {
+      const result = await serial(async () => {
+        try {
+          const { quiz, warnings } = await importQuiz(req.body, { dataDir: config.dataDir, allowPrivateUrls: config.allowPrivateUrls });
+          let id: number;
+          if (replace) {
+            db.updateQuiz(replace.id, quiz);
+            id = replace.id;
+          } else {
+            id = db.addQuiz(user(req).id, quiz);
+          }
+          return { id, title: quiz.title, questions: quiz.questions.length, warnings };
+        } finally {
+          await cleanupImages(); // räumt auch Reste eines gescheiterten Imports weg
+        }
+      });
+      res.status(replace ? 200 : 201).json(result);
+    } catch (err) {
+      if (err instanceof ImportFailure) return void res.status(400).json({ error: err.message, errors: err.errors });
+      throw err;
+    }
+  };
+
+  app.post('/api/quizzes', auth, upload, (req, res, next) => void handleUpload(req, res).catch(next));
+
+  app.put('/api/quizzes/:id', auth, upload, (req, res, next) => {
+    const row = db.quiz(Number(req.params.id));
+    if (!row || !canSee(req, row)) return void res.status(404).json({ error: 'Quiz nicht gefunden.' });
+    void handleUpload(req, res, row).catch(next);
+  });
+
+  app.delete('/api/quizzes/:id', auth, (req, res, next) => {
+    const row = db.quiz(Number(req.params.id));
+    if (!row || !canSee(req, row)) return void res.status(404).json({ error: 'Quiz nicht gefunden.' });
+    serial(async () => {
+      db.deleteQuiz(row.id);
+      await cleanupImages();
+    }).then(() => res.json({ ok: true }), next);
+  });
+
+  /** Quiz im Upload-Format herunterladen (Bilder als URLs) – zum Bearbeiten und erneuten Hochladen. */
+  app.get('/api/quizzes/:id/export', auth, (req, res) => {
+    const row = db.quiz(Number(req.params.id));
+    if (!row || !canSee(req, row)) return void res.status(404).json({ error: 'Quiz nicht gefunden.' });
+    const origin = config.publicUrl ?? `${req.protocol}://${req.get('host')}`;
+    const name = row.title.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'quiz';
+    res.setHeader('Content-Disposition', `attachment; filename="quiz.json"; filename*=UTF-8''${encodeURIComponent(name)}.json`);
+    res.type('application/json').send(JSON.stringify(exportQuiz(JSON.parse(row.json), origin), null, 2));
   });
 
   // ------------------------------------------------------------------ Spiele

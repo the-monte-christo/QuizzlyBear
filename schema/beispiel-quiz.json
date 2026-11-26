@@ -1,0 +1,27 @@
+{
+  "$schema": "./quiz.schema.json",
+  "title": "Beispiel-Quiz",
+  "description": "Kleines Beispiel zum Ausprobieren und als Vorlage.",
+  "settings": {
+    "phone": { "showQuestion": true, "showAnswerText": true },
+    "streak": { "bonus": 100, "max": 500 },
+    "ranking": { "reveal": [3, 2, 1], "tiebreak": ["correct", "time", "streak"], "top": 5 }
+  },
+  "questions": [
+    {
+      "id": "beeren",
+      "type": "mcsa",
+      "text": "Was fressen Grizzlybären im Spätsommer besonders gern?",
+      "time": 20,
+      "answer": { "options": ["Beeren", "Tannenzapfen", "Seetang", "Pilze"], "correct": 0 },
+      "explanation": "Vor dem Winter futtern sie sich mit Beeren Fettreserven an."
+    },
+    {
+      "type": "mcsa",
+      "text": "Welcher Fisch wird zu Rollmops verarbeitet?",
+      "time": 15,
+      "points": 2000,
+      "answer": { "options": ["Lachs", "Forelle", "Makrele", "Hering"], "correct": 3 }
+    }
+  ]
+}

@@ -16,6 +16,8 @@ export const config = {
   /** Legt beim ersten Start einen Quizmaster mit Admin-Rechten an, wenn es noch keinen gibt. */
   adminUser: env.ADMIN_USER,
   adminPassword: env.ADMIN_PASSWORD,
+  /** Bild-URLs aus dem internen Netz erlauben (nur für lokale Tests). */
+  allowPrivateUrls: env.ALLOW_PRIVATE_URLS === '1',
   /** Obergrenze für Uploads (ZIP oder JSON). */
   maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 60) * 1024 * 1024,
 };

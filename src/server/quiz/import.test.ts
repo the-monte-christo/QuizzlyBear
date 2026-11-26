@@ -1,0 +1,152 @@
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { strToU8, zipSync } from 'fflate';
+import sharp from 'sharp';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { buildQuizSchema } from '../../types/schema';
+import { importQuiz, ImportFailure } from './import';
+import { validateQuiz } from './validate';
+
+let dataDir: string;
+let photo: Buffer;
+
+beforeAll(async () => {
+  dataDir = mkdtempSync(join(tmpdir(), 'qb-test-'));
+  mkdirSync(join(dataDir, 'img'));
+  photo = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: '#d55e00' } })
+    .jpeg()
+    .toBuffer();
+});
+afterAll(() => rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
+
+const base = () => ({
+  title: 'Test',
+  questions: [{ type: 'mcsa', text: 'Was?', answer: { options: ['a', 'b'], correct: 1 } }] as any[],
+});
+const zip = (files: Record<string, Uint8Array>) => Buffer.from(zipSync(files));
+const json = (o: unknown) => Buffer.from(JSON.stringify(o));
+const failure = async (p: Promise<unknown>): Promise<ImportFailure> => {
+  try {
+    await p;
+  } catch (err) {
+    if (err instanceof ImportFailure) return err;
+    throw err;
+  }
+  throw new Error('Import hätte scheitern müssen');
+};
+
+describe('validateQuiz', () => {
+  it('akzeptiert ein minimales Quiz', () => {
+    expect(validateQuiz(base())).toEqual([]);
+  });
+
+  it('meldet fehlende und unbekannte Felder mit Fundstelle', () => {
+    const q = base();
+    delete q.questions[0].text;
+    q.questions[0].zeit = 10;
+    const errors = validateQuiz(q);
+    expect(errors).toContainEqual({ path: 'Frage 1 (mcsa)', message: 'Das Feld „text“ fehlt.' });
+    expect(errors).toContainEqual({ path: 'Frage 1 (mcsa)', message: 'Das Feld „zeit“ ist hier nicht bekannt (Tippfehler?).' });
+  });
+
+  it('meldet falsche Typen und Wertebereiche im answer-Objekt', () => {
+    const q = base();
+    q.questions[0].answer = { options: ['nur eine'], correct: 'a' };
+    q.questions[0].time = 2;
+    const errors = validateQuiz(q);
+    expect(errors).toContainEqual({ path: 'Frage 1 (mcsa) · answer.options', message: 'Die Liste braucht mindestens 2 Einträge.' });
+    expect(errors).toContainEqual({ path: 'Frage 1 (mcsa) · answer.correct', message: 'Hier wird eine ganze Zahl erwartet.' });
+    expect(errors).toContainEqual({ path: 'Frage 1 (mcsa) · time', message: 'Der Wert muss mindestens 5 sein.' });
+  });
+
+  it('prüft inhaltlich: Index der Lösung, doppelte Kennungen, unbekannter Typ', () => {
+    const q = base();
+    q.questions[0].answer.correct = 5;
+    q.questions[0].id = 'x';
+    q.questions.push({ id: 'x', type: 'mcsa', text: 'Noch eine?', answer: { options: ['a', 'b'], correct: 0 } });
+    const errors = validateQuiz(q);
+    expect(errors.map((e) => e.path)).toEqual(['Frage 1 (mcsa)', 'Frage 2 (mcsa) · id']);
+    expect(errors[0].message).toContain('nur 2 Optionen');
+
+    const unknown = base();
+    unknown.questions[0].type = 'quizshow';
+    expect(validateQuiz(unknown)[0].message).toMatch(/^Erlaubt sind nur: mcsa/);
+  });
+
+  it('prüft die Siegerreihenfolge in den Einstellungen', () => {
+    const q: any = base();
+    q.settings = { ranking: { reveal: [3, 3, 0] } };
+    const messages = validateQuiz(q).map((e) => `${e.path}: ${e.message}`);
+    expect(messages).toContain('settings.ranking.reveal: Die Liste enthält einen Eintrag doppelt.');
+    expect(messages).toContain('settings.ranking.reveal[2]: Der Wert muss mindestens 1 sein.');
+  });
+});
+
+describe('Schema-Datei', () => {
+  it('schema/quiz.schema.json ist aktuell (sonst: npm run build:schema)', () => {
+    const onDisk = JSON.parse(readFileSync('schema/quiz.schema.json', 'utf8'));
+    expect(onDisk).toEqual(JSON.parse(JSON.stringify(buildQuizSchema())));
+  });
+
+  it('das Beispiel-Quiz ist gültig', () => {
+    expect(validateQuiz(JSON.parse(readFileSync('schema/beispiel-quiz.json', 'utf8')))).toEqual([]);
+  });
+});
+
+describe('importQuiz', () => {
+  it('importiert reines JSON und ergänzt Standardwerte', async () => {
+    const { quiz } = await importQuiz(json(base()), { dataDir });
+    expect(quiz.questions[0]).toMatchObject({ id: 'q1', time: 20, points: 1000 });
+    expect(quiz.settings.ranking.reveal).toEqual([3, 2, 1]);
+    expect(quiz.settings.phone.showQuestion).toBe(true);
+  });
+
+  it('verarbeitet Bilder aus dem ZIP: max. 1280 px, WebP, Dateiname = Hash, keine Dubletten', async () => {
+    const q = base();
+    q.questions[0].image = 'img/Foto.JPG';
+    q.questions.push({ type: 'mcsa', text: 'Zwei?', image: './img/foto.jpg', answer: { options: ['a', 'b'], correct: 0 } });
+    // Ordner gezippt statt Inhalt: quiz.json liegt eine Ebene tiefer
+    const body = zip({ 'mein-quiz/quiz.json': strToU8(JSON.stringify(q)), 'mein-quiz/img/foto.jpg': photo, 'mein-quiz/img/rest.png': photo });
+    const { quiz, warnings } = await importQuiz(body, { dataDir });
+    const image = quiz.questions[0].image!;
+    expect(image).toMatchObject({ w: 1280, h: 640 });
+    expect(image.src).toMatch(/^\/img\/[a-f0-9]{32}\.webp$/);
+    expect(quiz.questions[1].image).toEqual(image);
+    expect(readdirSync(join(dataDir, 'img'))).toEqual([image.src.slice(5)]);
+    // aus dem Speicher lesen: sharp hält Dateien unter Windows sonst geöffnet
+    const meta = await sharp(readFileSync(join(dataDir, image.src))).metadata();
+    expect(meta.format).toBe('webp');
+    expect(warnings[0]).toContain('img/rest.png');
+  });
+
+  it('erklärt fehlende Bilder, kaputte Bilder und Pfade ohne ZIP', async () => {
+    const q = base();
+    q.questions[0].image = 'img/fehlt.jpg';
+    const missing = await failure(importQuiz(zip({ 'quiz.json': strToU8(JSON.stringify(q)) }), { dataDir }));
+    expect(missing.errors[0]).toEqual({ path: 'Frage 1 (mcsa) · image', message: 'Das Bild „img/fehlt.jpg“ fehlt im ZIP.' });
+
+    const broken = await failure(
+      importQuiz(zip({ 'quiz.json': strToU8(JSON.stringify(q)), 'img/fehlt.jpg': strToU8('kein Bild') }), { dataDir }),
+    );
+    expect(broken.errors[0].message).toContain('ist kein verwendbares Bild');
+
+    const noZip = await failure(importQuiz(json(q), { dataDir }));
+    expect(noZip.errors[0].message).toContain('Bildpfade funktionieren nur im ZIP');
+  });
+
+  it('lehnt Bild-URLs ins interne Netz ab', async () => {
+    const q = base();
+    q.questions[0].image = 'http://127.0.0.1:9/geheim.png';
+    const err = await failure(importQuiz(json(q), { dataDir }));
+    expect(err.errors[0].message).toContain('internen Netz');
+  });
+
+  it('meldet kaputtes JSON, fehlende quiz.json und Schemafehler', async () => {
+    expect((await failure(importQuiz(Buffer.from('{ "title": '), { dataDir }))).message).toBe('quiz.json ist kein gültiges JSON.');
+    expect((await failure(importQuiz(zip({ 'readme.txt': strToU8('hi') }), { dataDir }))).message).toBe('Im ZIP fehlt die Datei quiz.json.');
+    const err = await failure(importQuiz(json({ title: 'x', questions: [] }), { dataDir }));
+    expect(err.message).toBe('Das Quiz hat einen Fehler.');
+    expect(err.errors[0]).toEqual({ path: 'questions', message: 'Die Liste braucht mindestens 1 Einträge.' });
+  });
+});

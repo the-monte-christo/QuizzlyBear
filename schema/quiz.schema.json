@@ -1,0 +1,239 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://quizzlybear.blanke.nrw/schema/quiz.schema.json",
+  "title": "QuizzlyBear-Quiz",
+  "description": "Ein Quiz für QuizzlyBear. Hochladen als quiz.json (Bilder als URLs) oder als ZIP mit quiz.json und Ordner img/.",
+  "type": "object",
+  "required": [
+    "title",
+    "questions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optionaler Verweis auf dieses Schema."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Titel des Quiz."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 300,
+      "description": "Optionale Kurzbeschreibung für die Übersicht."
+    },
+    "settings": {
+      "type": "object",
+      "description": "Optionale Einstellungen. Alles Weggelassene bekommt den Standardwert.",
+      "additionalProperties": false,
+      "properties": {
+        "phone": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Was auf den Handys der Spieler erscheint. Der Host kann beides im Spiel umschalten.",
+          "properties": {
+            "showQuestion": {
+              "type": "boolean",
+              "default": true,
+              "description": "Fragetext und Fragebild auch auf dem Handy zeigen. false: Frage nur auf dem großen Bildschirm."
+            },
+            "showAnswerText": {
+              "type": "boolean",
+              "default": true,
+              "description": "Antworttexte auf dem Handy zeigen. false: nur Farbe + Symbol."
+            }
+          }
+        },
+        "streak": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Serie = richtige Antworten in Folge. Die Serie wird immer gezählt und angezeigt.",
+          "properties": {
+            "bonus": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000,
+              "default": 0,
+              "description": "Bonuspunkte je Serien-Stufe ab der zweiten richtigen Antwort in Folge. 0 = kein Bonus."
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000,
+              "default": 500,
+              "description": "Obergrenze des Bonus pro Frage."
+            }
+          }
+        },
+        "ranking": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reveal": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "default": [
+                3,
+                2,
+                1
+              ],
+              "description": "Siegerreihenfolge: die Plätze in der Reihenfolge, in der sie bei der Siegerehrung enthüllt werden. [3, 2, 1] = klassisch, [1, 2, 3] = Sieger zuerst, [5, 4, 3, 2, 1] = Top 5."
+            },
+            "tiebreak": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "correct",
+                  "time",
+                  "streak",
+                  "name"
+                ]
+              },
+              "default": [
+                "correct",
+                "time",
+                "streak"
+              ],
+              "description": "Bei Punktgleichheit, in dieser Reihenfolge: correct = mehr richtige Antworten, time = kürzere Gesamtzeit, streak = längste Serie, name = alphabetisch."
+            },
+            "top": {
+              "type": "integer",
+              "minimum": 3,
+              "maximum": 8,
+              "default": 5,
+              "description": "Anzahl der Zeilen in der Zwischen-Rangliste nach jeder Frage."
+            }
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/definitions/question"
+      },
+      "description": "Die Fragen in Spielreihenfolge."
+    }
+  },
+  "definitions": {
+    "answer_mcsa": {
+      "type": "object",
+      "description": "Multiple Choice mit genau einer richtigen Antwort.",
+      "required": [
+        "options",
+        "correct"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": "Antwortoptionen (2–6). Kurz halten: ideal bis 60 Zeichen."
+        },
+        "correct": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index der richtigen Option, beginnend bei 0."
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "description": "Eine Frage. Das Feld „answer“ hängt vom Typ ab.",
+      "required": [
+        "type",
+        "text",
+        "answer"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,40}$",
+          "description": "Optionale, im Quiz eindeutige Kennung. Nötig, wenn eine spätere Frage auf das Ergebnis einer Umfrage verweist."
+        },
+        "type": {
+          "enum": [
+            "mcsa"
+          ],
+          "description": "Fragetyp: mcsa = Eine Antwort."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Fragetext. Ideal bis etwa 120 Zeichen."
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Optionales Bild: im ZIP ein Pfad relativ zur quiz.json (z. B. „img/karte.jpg“), in einer reinen quiz.json eine http(s)-URL. Pflicht bei den Typen pin und circle."
+        },
+        "time": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 20,
+          "description": "Antwortzeit in Sekunden (Standard 20)."
+        },
+        "points": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5000,
+          "default": 1000,
+          "description": "Maximalpunkte der Frage (Standard 1000). Für doppelte Punkte 2000."
+        },
+        "explanation": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Optionaler Satz, der bei der Auflösung unter der Frage erscheint."
+        },
+        "answer": {
+          "type": "object",
+          "description": "Typspezifisches Antwort-Objekt."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mcsa"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_mcsa"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
