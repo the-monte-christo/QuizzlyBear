@@ -1,0 +1,25 @@
+# Geheimnisse und interne Notizen – niemals committen
+imagegen.txt
+skill-webservice-deployment.md
+.env
+.env.*
+!.env.example
+
+# Abhängigkeiten und Build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Laufzeitdaten (SQLite, hochgeladene Bilder)
+data/
+daten/
+
+# Werkzeuge
+.claude/
+.vscode/
+*.log
+test-results/
+screenshots/
+
+# Vorschau der Freistellung
+art/debug/
