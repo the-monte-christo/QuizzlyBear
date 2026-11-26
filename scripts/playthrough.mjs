@@ -1,10 +1,12 @@
 // Spielt eine komplette Runde im echten Browser durch (Edge, headless) und legt Screenshots ab.
-// Dient als Ende-zu-Ende-Test und zur Sichtkontrolle von Host-Screen (4K) und Handy-App.
+// Ende-zu-Ende-Test und Sichtkontrolle von Host-Screen und Handy-App in einem:
+// Jeder Fragetyp wird wirklich bedient (tippen, sortieren, Regler ziehen, Punkt und Kreis setzen),
+// ein Handy lädt mitten in einer Frage neu (Reconnect), eines ändert seine Antwort.
 //
 //   npm run dev            (in einem zweiten Terminal)
-//   node scripts/playthrough.mjs [--base http://localhost:5173] [--quiz "Titel"] [--players 4] [--4k]
+//   node scripts/playthrough.mjs [--base http://localhost:5173] [--quiz "Titel"] [--players 4] [--4k] [--out screenshots]
 //
-// Voraussetzung: `npm run seed` (Quizmaster demo / demodemo).
+// Voraussetzung: `npm run seed` (Quizmaster demo / demodemo und das Demo-Quiz).
 import { chromium } from 'playwright-core';
 import { mkdir } from 'node:fs/promises';
 
@@ -13,7 +15,7 @@ const arg = (name, fallback) => {
   return i > 0 ? process.argv[i + 1] : fallback;
 };
 const BASE = arg('base', 'http://localhost:5173');
-const QUIZ = arg('quiz', '');
+const QUIZ = arg('quiz', 'QuizzlyBear-Demo');
 const PLAYERS = Number(arg('players', 4));
 const UHD = process.argv.includes('--4k');
 const OUT = arg('out', 'screenshots');
@@ -29,24 +31,26 @@ const watch = (page, label) => {
 let shot = 0;
 const snap = async (page, name) => {
   const file = `${OUT}/${String(++shot).padStart(2, '0')}-${name}.jpg`;
-  await page.screenshot({ path: file, type: 'jpeg', quality: 82 });
+  await page.screenshot({ path: file, type: 'jpeg', quality: 84 });
   return file;
+};
+const check = (ok, what) => {
+  if (!ok) errors.push(`Prüfung fehlgeschlagen: ${what}`);
 };
 
 // ---- Quizmaster: anmelden, Spiel starten
-const hostCtx = await browser.newContext({
-  viewport: UHD ? { width: 3840, height: 2160 } : { width: 1920, height: 1080 },
-});
+const hostCtx = await browser.newContext({ viewport: UHD ? { width: 3840, height: 2160 } : { width: 1920, height: 1080 } });
 const host = await hostCtx.newPage();
 watch(host, 'host');
 await host.goto(`${BASE}/admin/`);
 await host.fill('input[autocomplete="username"]', 'demo');
 await host.fill('input[type="password"]', 'demodemo');
 await host.click('button:has-text("Anmelden")');
-await host.waitForSelector('text=Quizze');
+await host.waitForSelector('h2:has-text("Quizze")');
+await host.waitForTimeout(400);
 await snap(host, 'admin');
-const card = QUIZ ? host.locator('.item', { hasText: QUIZ }) : host.locator('.item').filter({ hasText: 'Spiel starten' }).first();
-await card.locator('button:has-text("Spiel starten")').click();
+// nur Quiz-Karten haben den Start-Knopf (laufende Spiele stehen in derselben Liste darüber)
+await host.locator('.item:has(button:has-text("Spiel starten"))', { hasText: QUIZ }).first().locator('button:has-text("Spiel starten")').click();
 await host.waitForSelector('.pin .digit');
 const pin = (await host.locator('.pin').getAttribute('aria-label')).replace(/\D/g, '');
 console.log('PIN', pin);
@@ -71,12 +75,73 @@ await host.waitForTimeout(900);
 await snap(host, 'host-lobby');
 await snap(phones[0], 'phone-lobby');
 
+// ---- Antworten je Fragetyp. Spieler 0 kennt die Lösungen des Demo-Quiz, die anderen streuen.
+async function sortTo(page, texts) {
+  for (let target = 0; target < texts.length; target++) {
+    const rows = page.locator('.sort li');
+    const all = await rows.allInnerTexts();
+    const from = all.findIndex((t) => t.includes(texts[target]));
+    if (from < 0) continue;
+    await rows.nth(from).focus();
+    for (let k = from; k > target; k--) await page.keyboard.press('ArrowUp');
+  }
+}
+
+async function answer(page, who, kind, q) {
+  const smart = who === 0;
+  if (await page.locator('.pad').count()) {
+    const box = await page.locator('.pad').boundingBox();
+    const isCircle = kind.includes('Kreis');
+    const target = isCircle ? { x: 0.624, y: 0.198 } : { x: 0.622, y: 0.815 };
+    const off = smart ? 0 : 0.09 * who;
+    const px = box.x + box.width * Math.min(0.95, Math.max(0.05, target.x - off));
+    const py = box.y + box.height * Math.min(0.95, Math.max(0.05, target.y + (isCircle ? off : -off)));
+    await page.mouse.move(px, py);
+    await page.mouse.down();
+    if (isCircle) await page.mouse.move(px + box.width * (smart ? 0.1 : 0.16 + 0.05 * who), py, { steps: 5 });
+    await page.mouse.up();
+  } else if (await page.locator('.thumb').count()) {
+    // der Zeitbalken hat auch eine .track – gemeint ist die Leiste mit den Griffen
+    const track = await page.locator('.track:has(.thumb)').first().boundingBox();
+    const thumbs = page.locator('.thumb');
+    const drag = async (index, fraction) => {
+      const t = await thumbs.nth(index).boundingBox();
+      await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(track.x + track.width * fraction, t.y + t.height / 2, { steps: 6 });
+      await page.mouse.up();
+    };
+    if ((await thumbs.count()) === 1) await drag(0, smart ? (q === 10 ? 0.5 : 0.71) : 0.25 + who * 0.17);
+    else {
+      await drag(0, smart ? 0.5 : 0.08 * who);
+      await drag(1, smart ? 0.6 : 0.35 + 0.2 * who);
+    }
+  } else if (await page.locator('.sort').count()) {
+    if (smart) await sortTo(page, kind.includes('Paare') ? ['Honig', 'Milch', 'Eier', 'Wolle'] : ['Biene', 'Hering', 'Fuchs', 'Grizzlybär']);
+    else if (who % 2) {
+      await page.locator('.sort li').first().focus();
+      await page.keyboard.press('ArrowDown');
+    }
+  } else {
+    const opts = page.locator('.grid .opt');
+    const n = await opts.count();
+    if (await page.locator('.bar').count()) {
+      for (const i of smart ? [0, 2, 4] : [who % n, (who + 2) % n]) await opts.nth(i).click();
+    } else {
+      if (who === 2) {
+        // erst falsch, dann umentscheiden: Die Antwort bleibt änderbar
+        await opts.nth(n - 1).click();
+        await page.waitForTimeout(300);
+      }
+      await opts.nth(smart ? 0 : who % n).click();
+    }
+  }
+  const send = page.locator('.bar .send');
+  if (await send.count()) await send.click();
+}
+
 // ---- Fragen durchspielen
-const total = await host.evaluate(() => 0); // Platzhalter, Anzahl ergibt sich aus dem Ablauf
-void total;
-let q = 0;
-for (;;) {
-  q++;
+for (let q = 1; ; q++) {
   await host.keyboard.press('Space'); // starten bzw. nächste Frage
   await host.waitForSelector('.countdown .num');
   if (q === 1) {
@@ -86,34 +151,29 @@ for (;;) {
   }
   await host.waitForSelector('.q .head', { timeout: 8000 });
   const kind = (await host.locator('.q .kind').textContent()).trim();
-  await host.waitForTimeout(900);
-  await snap(host, `host-q${q}-frage`);
-  await snap(phones[0], `phone-q${q}-frage`);
+  const slug = kind.toLowerCase().replace(/[^a-zäöü]+/g, '-');
+  await host.waitForTimeout(1000);
+  await snap(host, `host-q${q}-${slug}`);
+  await snap(phones[0], `phone-q${q}-${slug}`);
 
-  // Jeder Spieler antwortet; die letzten lassen sich Zeit, einer ändert seine Antwort
   for (let i = 0; i < phones.length; i++) {
-    const page = phones[i];
-    const opts = page.locator('.grid .opt');
-    const n = await opts.count();
-    if (n > 0) {
-      if (i === 1) {
-        await opts.nth((q + 1) % n).click();
-        await page.waitForTimeout(400);
-      }
-      // Spieler 0 antwortet stets wie der Fragenindex (trifft die Lösung der Demo-Fragen 1–4), der Rest gestreut
-      await opts.nth(i === 0 ? (q - 1) % n : (q + i) % n).click();
+    await answer(phones[i], i, kind, q);
+    await phones[i].waitForTimeout(300);
+    if (i === 0) await snap(phones[0], `phone-q${q}-${slug}-fertig`);
+    if (q === 2 && i === 1) {
+      // Reconnect mitten in der Frage: Seite neu laden, die Antwort muss wieder da sein
+      await phones[1].reload();
+      await phones[1].waitForSelector('.grid .opt', { timeout: 8000 });
+      check((await phones[1].locator('.grid .opt.on').count()) === 1, 'Antwort nach Neuladen wiederhergestellt');
+      check((await phones[1].locator('.timer').count()) === 1, 'Restzeit nach Neuladen sichtbar');
+      await snap(phones[1], 'phone-reconnect');
     }
-    if (i === 0) {
-      await page.waitForTimeout(350);
-      await snap(page, `phone-q${q}-gewaehlt`);
-    }
-    await page.waitForTimeout(250);
   }
-  await host.waitForSelector('.q .stats', { timeout: 40_000 });
-  await host.waitForTimeout(1600);
-  await snap(host, `host-q${q}-aufloesung`);
-  await snap(phones[0], `phone-q${q}-ergebnis`);
-  if (phones[2]) await snap(phones[2], `phone-q${q}-ergebnis-c`);
+  await host.waitForSelector('.q .stats', { timeout: 45_000 });
+  await host.waitForTimeout(2600);
+  await snap(host, `host-q${q}-${slug}-aufloesung`);
+  await snap(phones[0], `phone-q${q}-${slug}-ergebnis`);
+  if (q === 2 && phones[1]) await snap(phones[1], `phone-q${q}-ergebnis-falsch`);
 
   const label = (await host.locator('.btn.next').textContent()).trim();
   console.log(`Frage ${q} (${kind}) → ${label}`);
@@ -121,11 +181,9 @@ for (;;) {
   if (label.includes('Siegerehrung')) break;
   if (label.includes('Rangliste')) {
     await host.waitForSelector('.board');
-    await host.waitForTimeout(400);
-    if (q === 2) await snap(host, 'host-rangliste-vorher');
-    await host.waitForTimeout(2200);
-    await snap(host, `host-q${q}-rangliste`);
-    if (q <= 2) await snap(phones[1], `phone-q${q}-platz`);
+    await host.waitForTimeout(2600);
+    if (q === 3 || q === 6) await snap(host, `host-q${q}-rangliste`);
+    if (q === 3) await snap(phones[1], `phone-q${q}-platz`);
   }
 }
 
@@ -134,19 +192,19 @@ await host.waitForSelector('.final');
 await host.waitForTimeout(800);
 await snap(host, 'host-final-0');
 await snap(phones[0], 'phone-final-wartet');
-for (let step = 1; step < 8; step++) {
-  const next = host.locator('button.btn.next');
-  if (!(await next.count())) break;
+for (let step = 1; step < 12; step++) {
+  if (!(await host.locator('button.btn.next').count())) break;
   await host.keyboard.press('Space');
   await host.waitForTimeout(1700);
   await snap(host, `host-final-${step}`);
 }
 await snap(phones[0], 'phone-final');
 await snap(phones[phones.length - 1], 'phone-final-letzter');
+check((await phones[0].locator('text=Platz 1').count()) === 1, 'Spieler mit allen richtigen Antworten gewinnt');
 
 await browser.close();
 if (errors.length) {
-  console.error('Fehler im Browser:\n' + [...new Set(errors)].join('\n'));
+  console.error('Fehler:\n' + [...new Set(errors)].join('\n'));
   process.exit(1);
 }
-console.log('Durchlauf ohne Browser-Fehler.');
+console.log('Durchlauf ohne Fehler.');

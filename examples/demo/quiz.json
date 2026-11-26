@@ -1,0 +1,87 @@
+{
+  "$schema": "../../schema/quiz.schema.json",
+  "title": "QuizzlyBear-Demo: alle Fragetypen",
+  "description": "Zehn Fragen, jeder Fragetyp mindestens einmal – zum Ausprobieren und als Vorlage.",
+  "settings": {
+    "phone": { "showQuestion": true, "showAnswerText": true },
+    "streak": { "bonus": 100, "max": 500 },
+    "ranking": { "reveal": [3, 2, 1], "tiebreak": ["correct", "time", "streak"], "top": 5 }
+  },
+  "questions": [
+    {
+      "id": "honig",
+      "type": "poll",
+      "text": "Hand aufs Herz: Wie oft isst du Honig?",
+      "time": 15,
+      "answer": { "options": ["Fast täglich", "Ab und zu", "So gut wie nie"] }
+    },
+    {
+      "type": "mcsa",
+      "text": "Wie heißt der Bär, der durch dieses Quiz führt?",
+      "image": "img/quizzly.jpg",
+      "time": 15,
+      "answer": { "options": ["Quizzly", "Herry", "Balu", "Bruno"], "correct": 0 },
+      "explanation": "Quizzly, der Quizzlybär. Herry ist der freche Hering."
+    },
+    {
+      "type": "mcma",
+      "text": "Welche dieser Tiere sind Fische?",
+      "time": 25,
+      "answer": { "options": ["Hering", "Delfin", "Seepferdchen", "Tintenfisch", "Hai"], "correct": [0, 2, 4] },
+      "explanation": "Delfine sind Säugetiere, Tintenfische Weichtiere."
+    },
+    {
+      "type": "order",
+      "text": "Sortiere die Tiere nach ihrer Größe.",
+      "time": 30,
+      "answer": { "items": ["Biene", "Hering", "Fuchs", "Grizzlybär"], "first": "kleinstes", "last": "größtes" }
+    },
+    {
+      "type": "match",
+      "text": "Wer liefert was?",
+      "time": 30,
+      "answer": {
+        "pairs": [
+          { "left": "Biene", "right": "Honig" },
+          { "left": "Kuh", "right": "Milch" },
+          { "left": "Huhn", "right": "Eier" },
+          { "left": "Schaf", "right": "Wolle" }
+        ]
+      }
+    },
+    {
+      "type": "estimate",
+      "text": "Wie viel Prozent der Erdoberfläche sind von Wasser bedeckt?",
+      "time": 25,
+      "answer": { "min": 0, "max": 100, "correct": 71, "unit": "%" }
+    },
+    {
+      "type": "interval",
+      "text": "In welchem Jahr fiel die Berliner Mauer? Wähle einen Bereich.",
+      "time": 25,
+      "answer": { "min": 1950, "max": 2020, "correct": 1989 }
+    },
+    {
+      "type": "pin",
+      "text": "Tippe auf die Himbeere.",
+      "image": "img/sticker.jpg",
+      "time": 20,
+      "answer": { "x": 0.622, "y": 0.815, "tolerance": 0.07, "maxDistance": 0.3 }
+    },
+    {
+      "type": "circle",
+      "text": "Kreise die Biene ein – so eng wie möglich.",
+      "image": "img/sticker.jpg",
+      "time": 25,
+      "answer": { "x": 0.624, "y": 0.198 }
+    },
+    {
+      "type": "estimate",
+      "text": "Wie viel Prozent von uns essen fast täglich Honig?",
+      "time": 25,
+      "points": 2000,
+      "answer": { "min": 0, "max": 100, "correct": { "poll": "honig", "option": 0 }, "unit": "%" },
+      "explanation": "Die Lösung ist das Ergebnis unserer Umfrage vom Anfang."
+    }
+  ]
+}

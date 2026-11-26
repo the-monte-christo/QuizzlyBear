@@ -156,6 +156,323 @@
         }
       }
     },
+    "answer_mcma": {
+      "type": "object",
+      "description": "Multiple Choice mit einer oder mehreren richtigen Antworten. Teilpunkte: (richtig gewählte − falsch gewählte) / Anzahl richtiger, mindestens 0.",
+      "required": [
+        "options",
+        "correct"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": "Antwortoptionen (2–6). Kurz halten: ideal bis 60 Zeichen."
+        },
+        "correct": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Indizes aller richtigen Optionen, beginnend bei 0."
+        }
+      }
+    },
+    "answer_order": {
+      "type": "object",
+      "description": "Reihenfolge sortieren. „items“ steht in der RICHTIGEN Reihenfolge; gemischt wird automatisch. Punkte: Anteil der Einträge an der richtigen Position.",
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": "Einträge in der richtigen Reihenfolge (2–8), jeweils kurz."
+        },
+        "first": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Optionale Beschriftung des oberen Endes, z. B. „älteste“."
+        },
+        "last": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "Optionale Beschriftung des unteren Endes, z. B. „jüngste“."
+        }
+      }
+    },
+    "answer_match": {
+      "type": "object",
+      "description": "Paare zuordnen. Jedes Paar gehört zusammen; die rechte Seite wird automatisch gemischt. Punkte: Anteil richtig zugeordneter Paare.",
+      "required": [
+        "pairs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pairs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "description": "Zusammengehörende Paare (2–6).",
+          "items": {
+            "type": "object",
+            "required": [
+              "left",
+              "right"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "left": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50,
+                "description": "Linke Seite (bleibt stehen), z. B. ein Land."
+              },
+              "right": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50,
+                "description": "Rechte Seite (wird gemischt), z. B. die Hauptstadt."
+              }
+            }
+          }
+        }
+      }
+    },
+    "answer_estimate": {
+      "type": "object",
+      "description": "Schätzfrage mit Schieberegler. Punkte nach relativer Abweichung, unabhängig von der Zeit: Volltreffer = volle Punkte; wer um „tolerance“ (Anteil der Skalenbreite) oder mehr danebenliegt, bekommt 0.",
+      "required": [
+        "min",
+        "max",
+        "correct"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "Linkes Ende des Schiebereglers."
+        },
+        "max": {
+          "type": "number",
+          "description": "Rechtes Ende des Schiebereglers. Die Lösung sollte nicht in der Mitte der Skala liegen."
+        },
+        "correct": {
+          "description": "Die Lösung: eine Zahl – oder ein Verweis { \"poll\": \"<id einer früheren poll-Frage>\", \"option\": <Index> }. Beim Verweis ist die Lösung der Prozentanteil (0–100) der Spieler, die in dieser Runde diese Option gewählt haben.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "required": [
+                "poll",
+                "option"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "poll": {
+                  "type": "string",
+                  "description": "id der Umfrage-Frage (muss früher im Quiz stehen)."
+                },
+                "option": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Index der Option, beginnend bei 0."
+                }
+              }
+            }
+          ]
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Schrittweite des Reglers. Ohne Angabe wird eine passende gewählt (rund 100–200 Schritte)."
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 12,
+          "description": "Einheit hinter der Zahl, z. B. „%“, „km“, „Jahre“."
+        },
+        "tolerance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.25,
+          "description": "Abweichung als Anteil der Skalenbreite, ab der es 0 Punkte gibt. 0.25 = ein Viertel der Skala. Kleiner = strenger."
+        }
+      }
+    },
+    "answer_interval": {
+      "type": "object",
+      "description": "Bereichsfrage: Die Spieler wählen von–bis. Liegt die Lösung im Bereich, gibt es 1 − (Breite / Skalenbreite) der Punkte, sonst 0. Unabhängig von der Zeit.",
+      "required": [
+        "min",
+        "max",
+        "correct"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "Linkes Ende des Schiebereglers."
+        },
+        "max": {
+          "type": "number",
+          "description": "Rechtes Ende des Schiebereglers. Die Lösung sollte nicht in der Mitte der Skala liegen."
+        },
+        "correct": {
+          "description": "Die Lösung: eine Zahl – oder ein Verweis { \"poll\": \"<id einer früheren poll-Frage>\", \"option\": <Index> }. Beim Verweis ist die Lösung der Prozentanteil (0–100) der Spieler, die in dieser Runde diese Option gewählt haben.",
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "required": [
+                "poll",
+                "option"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "poll": {
+                  "type": "string",
+                  "description": "id der Umfrage-Frage (muss früher im Quiz stehen)."
+                },
+                "option": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Index der Option, beginnend bei 0."
+                }
+              }
+            }
+          ]
+        },
+        "step": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Schrittweite des Reglers. Ohne Angabe wird eine passende gewählt (rund 100–200 Schritte)."
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 12,
+          "description": "Einheit hinter der Zahl, z. B. „%“, „km“, „Jahre“."
+        }
+      }
+    },
+    "answer_pin": {
+      "type": "object",
+      "description": "Punkt auf dem Fragebild setzen (die Frage braucht ein „image“). Punkte nach Entfernung zur Lösung, unabhängig von der Zeit. Abstände zählen in Bildbreiten.",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Waagerechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Senkrechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+        },
+        "tolerance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.04,
+          "description": "Abstand in Bildbreiten, bis zu dem es volle Punkte gibt (0.04 = 4 % der Bildbreite)."
+        },
+        "maxDistance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2,
+          "default": 0.3,
+          "description": "Abstand in Bildbreiten, ab dem es 0 Punkte gibt. Dazwischen fallen die Punkte linear."
+        }
+      }
+    },
+    "answer_circle": {
+      "type": "object",
+      "description": "Kreis auf dem Fragebild ziehen (die Frage braucht ein „image“): Mittelpunkt tippen, Radius ziehen. Liegt die Lösung im Kreis, gibt es umso mehr Punkte, je kleiner der Kreis ist; sonst 0. Unabhängig von der Zeit.",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Waagerechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Senkrechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+        },
+        "minRadius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 0.5,
+          "default": 0.04,
+          "description": "Kleinster wählbarer Radius in Bildbreiten; ein Treffer damit gibt volle Punkte."
+        },
+        "maxRadius": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "default": 0.4,
+          "description": "Größter wählbarer Radius in Bildbreiten; ein Treffer damit gibt 0 Punkte."
+        }
+      }
+    },
+    "answer_poll": {
+      "type": "object",
+      "description": "Meinungsfrage ohne richtige Antwort und ohne Punkte. Mit einer „id“ an der Frage kann eine spätere estimate- oder interval-Frage das Ergebnis als Lösung verwenden.",
+      "required": [
+        "options"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": "Antwortoptionen (2–6). Kurz halten: ideal bis 60 Zeichen."
+        }
+      }
+    },
     "question": {
       "type": "object",
       "description": "Eine Frage. Das Feld „answer“ hängt vom Typ ab.",
@@ -173,9 +490,17 @@
         },
         "type": {
           "enum": [
-            "mcsa"
+            "mcsa",
+            "mcma",
+            "order",
+            "match",
+            "estimate",
+            "interval",
+            "pin",
+            "circle",
+            "poll"
           ],
-          "description": "Fragetyp: mcsa = Eine Antwort."
+          "description": "Fragetyp: mcsa = Eine Antwort, mcma = Mehrere Antworten, order = Reihenfolge, match = Paare, estimate = Schätzfrage, interval = Bereich, pin = Punkt setzen, circle = Kreis ziehen, poll = Umfrage."
         },
         "text": {
           "type": "string",
@@ -229,6 +554,158 @@
             "properties": {
               "answer": {
                 "$ref": "#/definitions/answer_mcsa"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mcma"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_mcma"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "order"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_order"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "match"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_match"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "estimate"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_estimate"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "interval"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_interval"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "pin"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_pin"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "circle"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_circle"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "poll"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "answer": {
+                "$ref": "#/definitions/answer_poll"
               }
             }
           }
