@@ -19,7 +19,7 @@ daten/
 .vscode/
 *.log
 test-results/
-screenshots/
+/screenshots/
 
 # Vorschau der Freistellung
 art/debug/

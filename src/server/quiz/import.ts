@@ -25,7 +25,7 @@ export interface ImportResult {
   warnings: string[];
 }
 
-const MAX_UNZIPPED = 300 * 1024 * 1024;
+const MAX_UNZIPPED = 150 * 1024 * 1024;
 const MAX_ENTRIES = 600;
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|tiff?|heic|heif)$/i;
 const isUrl = (s: string) => /^https?:\/\//i.test(s);
@@ -42,7 +42,7 @@ function readZip(body: Buffer): { json: string; files: Map<string, Uint8Array> }
         if (!/(^|\/)quiz\.json$/i.test(file.name) && !IMAGE_EXT.test(file.name)) return false;
         total += file.originalSize;
         if (++count > MAX_ENTRIES || total > MAX_UNZIPPED) {
-          throw new ImportFailure('Das ZIP ist zu groß (höchstens 600 Dateien und 300 MB entpackt).');
+          throw new ImportFailure('Das ZIP ist zu groß (höchstens 600 Dateien und 150 MB entpackt).');
         }
         return true;
       },
@@ -120,28 +120,28 @@ export async function importQuiz(body: Buffer, opts: ImportOptions): Promise<Imp
   };
 
   const imageErrors: ImportError[] = [];
-  const questions: Question[] = await Promise.all(
-    (raw.questions as any[]).map(async (q, i): Promise<Question> => {
-      let image: ImageRef | undefined;
-      if (q.image) {
-        try {
-          image = await resolve(q.image);
-        } catch (err) {
-          imageErrors.push({ path: `Frage ${i + 1} (${q.type}) · image`, message: (err as Error).message });
-        }
+  const questions: Question[] = [];
+  // Bilder nacheinander verarbeiten: Das begrenzt den Speicherbedarf (Container mit festem Limit)
+  for (const [i, q] of (raw.questions as any[]).entries()) {
+    let image: ImageRef | undefined;
+    if (q.image) {
+      try {
+        image = await resolve(q.image);
+      } catch (err) {
+        imageErrors.push({ path: `Frage ${i + 1} (${q.type}) · image`, message: (err as Error).message });
       }
-      return {
-        id: q.id ?? `q${i + 1}`,
-        type: q.type,
-        text: q.text.trim(),
-        image,
-        time: q.time ?? 20,
-        points: q.points ?? 1000,
-        explanation: q.explanation?.trim() || undefined,
-        answer: q.answer,
-      };
-    }),
-  );
+    }
+    questions.push({
+      id: q.id ?? `q${i + 1}`,
+      type: q.type,
+      text: q.text.trim(),
+      image,
+      time: q.time ?? 20,
+      points: q.points ?? 1000,
+      explanation: q.explanation?.trim() || undefined,
+      answer: q.answer,
+    });
+  }
   if (imageErrors.length) {
     throw new ImportFailure(
       imageErrors.length === 1 ? 'Ein Bild konnte nicht verarbeitet werden.' : `${imageErrors.length} Bilder konnten nicht verarbeitet werden.`,

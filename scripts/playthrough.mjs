@@ -74,6 +74,11 @@ for (let i = 0; i < PLAYERS; i++) {
 await host.waitForTimeout(900);
 await snap(host, 'host-lobby');
 await snap(phones[0], 'phone-lobby');
+if (arg('until', '') === 'lobby') {
+  await browser.close();
+  console.log('Bis zur Lobby gelaufen.');
+  process.exit(0);
+}
 
 // ---- Antworten je Fragetyp. Spieler 0 kennt die Lösungen des Demo-Quiz, die anderen streuen.
 async function sortTo(page, texts) {
@@ -155,6 +160,23 @@ for (let q = 1; ; q++) {
   await host.waitForTimeout(1000);
   await snap(host, `host-q${q}-${slug}`);
   await snap(phones[0], `phone-q${q}-${slug}`);
+
+  if (q === 1) {
+    // Host schaltet um: Frage nur auf dem großen Bildschirm, Antworten nur als Farbe + Symbol
+    await host.click('button[aria-label="Einstellungen"]');
+    const boxes = host.locator('.menu input[type="checkbox"]');
+    await boxes.nth(0).uncheck();
+    await boxes.nth(1).uncheck();
+    await phones[0].waitForSelector('.look');
+    check((await phones[0].locator('.qtext').count()) === 0, 'Fragetext auf dem Handy ausgeblendet');
+    check((await phones[0].locator('.grid .opt .text').count()) === 0, 'Antworttexte auf dem Handy ausgeblendet');
+    check((await phones[0].locator('.grid .opt svg.shape').count()) > 1, 'Symbole bleiben sichtbar');
+    await snap(phones[0], 'phone-nur-symbole');
+    await boxes.nth(0).check();
+    await boxes.nth(1).check();
+    await phones[0].waitForSelector('.qtext');
+    await host.click('button[aria-label="Einstellungen"]');
+  }
 
   for (let i = 0; i < phones.length; i++) {
     await answer(phones[i], i, kind, q);

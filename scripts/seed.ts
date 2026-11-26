@@ -6,6 +6,13 @@ import { config } from '../src/server/config';
 import { openDb } from '../src/server/db';
 import { importQuiz, ImportFailure } from '../src/server/quiz/import';
 
+// Das Demo-Login steht im README und ist damit öffentlich bekannt – auf einem Server hat es nichts verloren.
+if (config.prod) {
+  console.error('Abbruch: Das Seed-Skript legt ein bekanntes Demo-Login an und läuft deshalb nicht im Produktionsmodus.');
+  console.error('Einen echten Quizmaster legst du mit ADMIN_USER/ADMIN_PASSWORD oder `npm run user:add` an.');
+  process.exit(1);
+}
+
 const db = openDb(config.dataDir);
 let user = db.userByName('demo');
 if (!user) {

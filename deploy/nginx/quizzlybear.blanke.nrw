@@ -1,0 +1,72 @@
+# /etc/nginx/sites-available/quizzlybear.blanke.nrw
+server {
+    server_name quizzlybear.blanke.nrw;
+
+    # Socket.io (WebSocket mit Polling als Rückfall)
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:3070;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        proxy_buffering off;
+    }
+
+    # Quiz-Upload (ZIP mit Bildern): nur hier ist ein großer Body erlaubt
+    location /api/quizzes {
+        include snippets/quizzlybear-headers.conf;
+        client_max_body_size 45m;
+        proxy_request_buffering off;
+        proxy_read_timeout 120s;
+        proxy_pass http://127.0.0.1:3070;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        include snippets/quizzlybear-headers.conf;
+        proxy_pass http://127.0.0.1:3070;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    client_max_body_size 64k;
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 512;
+    gzip_proxied any;
+    gzip_types text/plain text/css application/javascript text/javascript application/json image/svg+xml;
+
+    location ~ /\. {
+        deny all;
+    }
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/quizzlybear.blanke.nrw/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/quizzlybear.blanke.nrw/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+server {
+    listen 80;
+    server_name quizzlybear.blanke.nrw;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/acme;
+        default_type text/plain;
+    }
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

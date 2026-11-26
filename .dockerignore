@@ -1,0 +1,15 @@
+.git
+node_modules
+dist
+data
+daten
+screenshots
+docs
+art/src
+art/debug
+deploy
+.env
+.env.*
+imagegen.txt
+skill-webservice-deployment.md
+*.log

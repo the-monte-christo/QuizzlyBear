@@ -19,5 +19,5 @@ export const config = {
   /** Bild-URLs aus dem internen Netz erlauben (nur für lokale Tests). */
   allowPrivateUrls: env.ALLOW_PRIVATE_URLS === '1',
   /** Obergrenze für Uploads (ZIP oder JSON). */
-  maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 60) * 1024 * 1024,
+  maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 40) * 1024 * 1024,
 };

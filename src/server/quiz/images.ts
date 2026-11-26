@@ -11,6 +11,10 @@ import type { ImageRef } from '../../shared/quiz';
 
 export const MAX_EDGE = 1280;
 const MAX_REMOTE_BYTES = 20 * 1024 * 1024;
+// Im Container zählt der Speicher mehr als das letzte bisschen Tempo
+sharp.cache(false);
+sharp.concurrency(1);
+
 const ALLOWED = new Set(['jpeg', 'png', 'webp', 'gif', 'avif', 'tiff', 'heif']);
 
 export async function storeImage(input: Buffer, dataDir: string): Promise<ImageRef> {

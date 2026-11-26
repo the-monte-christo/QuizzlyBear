@@ -286,7 +286,7 @@
       <p class="docs">
         Format: <a href="/schema/quiz-format.md" target="_blank" rel="noopener">Beschreibung (auch als Vorlage für eine KI)</a> ·
         <a href="/schema/quiz.schema.json" target="_blank" rel="noopener">JSON-Schema</a> ·
-        <a href="/schema/beispiel-quiz.json" target="_blank" rel="noopener">Beispiel-Quiz</a>
+        <a href="/schema/beispiel-quiz.zip" download>Beispiel-Quiz mit allen Fragetypen (ZIP)</a>
       </p>
     </section>
 
