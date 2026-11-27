@@ -91,11 +91,16 @@ for (let i = 0; i < PLAYERS; i++) {
 await host.waitForTimeout(900);
 await snap(host, 'host-lobby');
 await snap(phones[0], 'phone-lobby');
-if (arg('until', '') === 'lobby') {
+const finish = async (message) => {
   await browser.close();
-  console.log('Bis zur Lobby gelaufen.');
+  if (errors.length) {
+    console.error('Fehler:\n' + [...new Set(errors)].join('\n'));
+    process.exit(1);
+  }
+  console.log(message);
   process.exit(0);
-}
+};
+if (arg('until', '') === 'lobby') await finish('Bis zur Lobby gelaufen, ohne Fehler.');
 
 // ---- Antworten je Fragetyp. Spieler 0 kennt die Lösungen des Demo-Quiz, die anderen streuen.
 async function sortTo(page, texts) {
@@ -245,9 +250,4 @@ await snap(phones[0], 'phone-final');
 await snap(phones[phones.length - 1], 'phone-final-letzter');
 check((await phones[0].locator('text=Platz 1').count()) === 1, 'Spieler mit allen richtigen Antworten gewinnt');
 
-await browser.close();
-if (errors.length) {
-  console.error('Fehler:\n' + [...new Set(errors)].join('\n'));
-  process.exit(1);
-}
-console.log('Durchlauf ohne Fehler.');
+await finish('Durchlauf ohne Fehler.');

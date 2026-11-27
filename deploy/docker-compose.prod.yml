@@ -22,7 +22,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # etwas mehr als die üblichen 256m: Beim Quiz-Upload liegen ZIP und Bilder kurz im Speicher
+    # Gemessen mit scripts/measure-import.ts: Der ungünstigste Upload, den die Grenzen zulassen
+    # (40 MB ZIP, entpackt 100 MB), braucht in der Spitze rund 220 MB. 384m lässt dazu Luft.
     mem_limit: 384m
     healthcheck:
       test:

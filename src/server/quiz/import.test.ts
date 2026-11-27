@@ -1,10 +1,13 @@
 import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { strToU8, zipSync } from 'fflate';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildQuizSchema } from '../../types/schema';
+import { positive } from '../config';
 import { importQuiz, ImportFailure } from './import';
 import { validateQuiz } from './validate';
 
@@ -83,6 +86,18 @@ describe('validateQuiz', () => {
   });
 });
 
+describe('Konfiguration', () => {
+  it('fällt bei leeren oder unsinnigen Zahlen auf den Standardwert zurück', () => {
+    expect(positive(undefined, 40)).toBe(40);
+    expect(positive('', 40)).toBe(40);
+    expect(positive('  ', 40)).toBe(40);
+    expect(positive('40MB', 40)).toBe(40);
+    expect(positive('0', 40)).toBe(40);
+    expect(positive('-5', 40)).toBe(40);
+    expect(positive('25', 40)).toBe(25);
+  });
+});
+
 describe('Schema-Datei', () => {
   it('schema/quiz.schema.json ist aktuell (sonst: npm run build:schema)', () => {
     const onDisk = JSON.parse(readFileSync('schema/quiz.schema.json', 'utf8'));
@@ -140,6 +155,46 @@ describe('importQuiz', () => {
     q.questions[0].image = 'http://127.0.0.1:9/geheim.png';
     const err = await failure(importQuiz(json(q), { dataDir }));
     expect(err.errors[0].message).toContain('internen Netz');
+  });
+
+  it('lädt Bild-URLs mit begrenzter Parallelität und hält die Reihenfolge der Fragen', async () => {
+    const png = await sharp({ create: { width: 40, height: 30, channels: 3, background: '#0072b2' } })
+      .png()
+      .toBuffer();
+    let active = 0;
+    let most = 0;
+    const server = createServer((req, res) => {
+      active++;
+      most = Math.max(most, active);
+      setTimeout(() => {
+        active--;
+        if (req.url?.includes('n=3')) return void res.writeHead(404).end();
+        res.writeHead(200, { 'content-type': 'image/png' }).end(png);
+      }, 50);
+    });
+    await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const q = base();
+      q.questions = Array.from({ length: 12 }, (_, i) => ({
+        type: 'mcsa',
+        text: `Frage ${i}?`,
+        image: `http://127.0.0.1:${port}/bild.png?n=${i}`,
+        answer: { options: ['a', 'b'], correct: 0 },
+      }));
+      const err = await failure(importQuiz(json(q), { dataDir, allowPrivateUrls: true }));
+      // genau die eine kaputte Adresse wird gemeldet, mit der richtigen Frage
+      expect(err.errors).toEqual([{ path: 'Frage 4 (mcsa) · image', message: 'Das Bild konnte nicht geladen werden: der Server antwortet mit Status 404.' }]);
+      expect(most).toBeGreaterThan(1);
+      expect(most).toBeLessThanOrEqual(4);
+
+      q.questions.splice(3, 1);
+      const { quiz } = await importQuiz(json(q), { dataDir, allowPrivateUrls: true });
+      expect(quiz.questions.map((x) => x.text)).toEqual(q.questions.map((x: any) => x.text));
+      expect(quiz.questions.every((x) => x.image?.w === 40)).toBe(true);
+    } finally {
+      server.close();
+    }
   });
 
   it('meldet kaputtes JSON, fehlende quiz.json und Schemafehler', async () => {

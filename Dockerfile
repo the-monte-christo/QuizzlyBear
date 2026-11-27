@@ -23,7 +23,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/schema ./schema
 COPY package.json ./
-# Schreibt nur nach /data (Volume); alles andere bleibt read-only
+# Schreibt nur nach /data (Volume); alles andere bleibt read-only.
+# Das Verzeichnis gehört im Image schon dem Benutzer node, falls kein Volume eingehängt ist.
+RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 3000
 CMD ["node", "dist/server/index.js"]

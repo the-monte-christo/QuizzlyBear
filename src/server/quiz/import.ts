@@ -25,7 +25,11 @@ export interface ImportResult {
   warnings: string[];
 }
 
-const MAX_UNZIPPED = 150 * 1024 * 1024;
+const MAX_UNZIPPED = 100 * 1024 * 1024;
+/** So viele Bild-URLs werden gleichzeitig geladen. Umgerechnet wird immer nur ein Bild auf einmal. */
+const FETCH_PARALLEL = 4;
+/** Gesamtzeit für das Laden aller Bild-URLs – bleibt unter dem Timeout des Reverse Proxys. */
+const REMOTE_BUDGET_MS = 90_000;
 const MAX_ENTRIES = 600;
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|tiff?|heic|heif)$/i;
 const isUrl = (s: string) => /^https?:\/\//i.test(s);
@@ -36,13 +40,14 @@ function readZip(body: Buffer): { json: string; files: Map<string, Uint8Array> }
   let count = 0;
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(new Uint8Array(body), {
+    // Sicht auf den Puffer statt Kopie: Der Upload liegt sonst doppelt im Speicher
+    entries = unzipSync(new Uint8Array(body.buffer, body.byteOffset, body.byteLength), {
       filter(file) {
         if (file.name.endsWith('/') || file.name.includes('__MACOSX/')) return false;
         if (!/(^|\/)quiz\.json$/i.test(file.name) && !IMAGE_EXT.test(file.name)) return false;
         total += file.originalSize;
         if (++count > MAX_ENTRIES || total > MAX_UNZIPPED) {
-          throw new ImportFailure('Das ZIP ist zu groß (höchstens 600 Dateien und 150 MB entpackt).');
+          throw new ImportFailure('Das ZIP ist zu groß (höchstens 600 Dateien und 100 MB entpackt).');
         }
         return true;
       },
@@ -74,7 +79,7 @@ export async function importQuiz(body: Buffer, opts: ImportOptions): Promise<Imp
 
   let raw: any;
   try {
-    raw = JSON.parse(json.replace(/^﻿/, ''));
+    raw = JSON.parse(json.replace(/^\uFEFF/, ''));
   } catch (err) {
     throw new ImportFailure('quiz.json ist kein gültiges JSON.', [{ path: 'quiz.json', message: (err as Error).message }]);
   }
@@ -84,44 +89,80 @@ export async function importQuiz(body: Buffer, opts: ImportOptions): Promise<Imp
 
   // ---- Bilder auflösen: jedes Bild nur einmal verarbeiten
   const warnings: string[] = [];
-  const cache = new Map<string, Promise<ImageRef>>();
+  const zipNames = files ? [...files.keys()] : [];
   const used = new Set<string>();
-  const lower = files ? new Map([...files.keys()].map((k) => [k.toLowerCase(), k])) : null;
+  const lower = files ? new Map(zipNames.map((k) => [k.toLowerCase(), k])) : null;
 
-  const resolve = (ref: string): Promise<ImageRef> => {
-    let job = cache.get(ref);
-    if (job) return job;
-    job = (async () => {
-      if (isUrl(ref)) {
-        const known = await existingImage(ref, opts.dataDir);
-        if (known) return known;
-        let data: Buffer;
-        try {
-          data = await fetchImage(ref, opts.allowPrivateUrls);
-        } catch (err) {
-          throw new Error(`Das Bild konnte nicht geladen werden: ${(err as Error).message}.`);
-        }
-        return storeImage(data, opts.dataDir).catch((err) => {
-          throw new Error(`Die Adresse liefert kein verwendbares Bild (${(err as Error).message}).`);
-        });
-      }
-      if (!files || !lower) {
-        throw new Error('Bildpfade funktionieren nur im ZIP. In einer reinen quiz.json bitte eine Bild-URL (https://…) angeben.');
-      }
-      const key = lower.get(norm(ref).toLowerCase());
-      if (!key) throw new Error(`Das Bild „${ref}“ fehlt im ZIP.`);
-      used.add(key);
-      return storeImage(Buffer.from(files.get(key)!), opts.dataDir).catch((err) => {
-        throw new Error(`„${ref}“ ist kein verwendbares Bild (${(err as Error).message}).`);
-      });
-    })();
-    cache.set(ref, job);
+  // Umrechnen (sharp) strikt nacheinander: Jedes Bild liegt dabei unkomprimiert im Speicher,
+  // und der Container hat ein festes Limit.
+  let encoding: Promise<unknown> = Promise.resolve();
+  const store = (data: Buffer): Promise<ImageRef> => {
+    const job = encoding.then(() => storeImage(data, opts.dataDir));
+    encoding = job.catch(() => {});
     return job;
   };
 
+  const remoteDeadline = Date.now() + REMOTE_BUDGET_MS;
+  const byZipEntry = new Map<string, Promise<ImageRef>>();
+  const byRef = new Map<string, Promise<ImageRef>>();
+
+  const resolve = (ref: string): Promise<ImageRef> => {
+    let job = byRef.get(ref);
+    if (job) return job;
+    if (isUrl(ref)) {
+      job = (async () => {
+        const known = await existingImage(ref, opts.dataDir);
+        if (known) return known;
+        const left = remoteDeadline - Date.now();
+        if (left <= 0) throw new Error('Das Laden der Bilder hat insgesamt zu lange gedauert (mehr als 90 Sekunden). Weniger oder schnellere Bild-URLs verwenden – oder die Bilder ins ZIP legen.');
+        let data: Buffer;
+        try {
+          data = await fetchImage(ref, opts.allowPrivateUrls, Math.min(15_000, left));
+        } catch (err) {
+          throw new Error(`Das Bild konnte nicht geladen werden: ${(err as Error).message}.`);
+        }
+        return store(data).catch((err) => {
+          throw new Error(`Die Adresse liefert kein verwendbares Bild (${(err as Error).message}).`);
+        });
+      })();
+    } else if (!files || !lower) {
+      job = Promise.reject(new Error('Bildpfade funktionieren nur im ZIP. In einer reinen quiz.json bitte eine Bild-URL (https://…) angeben.'));
+    } else {
+      const key = lower.get(norm(ref).toLowerCase());
+      if (!key) {
+        job = Promise.reject(new Error(`Das Bild „${ref}“ fehlt im ZIP.`));
+      } else {
+        used.add(key);
+        // verschiedene Schreibweisen desselben Pfads teilen sich eine Verarbeitung
+        job = byZipEntry.get(key);
+        if (!job) {
+          const entry = files.get(key)!;
+          job = store(Buffer.from(entry.buffer, entry.byteOffset, entry.byteLength))
+            .catch((err) => {
+              throw new Error(`„${ref}“ ist kein verwendbares Bild (${(err as Error).message}).`);
+            })
+            .finally(() => files.delete(key)); // entpackte Daten sofort freigeben
+          byZipEntry.set(key, job);
+        }
+      }
+    }
+    job.catch(() => {}); // Fehler werden unten je Frage gemeldet
+    byRef.set(ref, job);
+    return job;
+  };
+
+  // Bild-URLs mit begrenzter Parallelität laden, damit viele langsame Adressen nicht in den
+  // Proxy-Timeout laufen; die Reihenfolge der Fragen bleibt davon unberührt.
+  const refs = [...new Set((raw.questions as any[]).map((q) => q.image).filter((r): r is string => typeof r === 'string'))];
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: FETCH_PARALLEL }, async () => {
+      while (next < refs.length) await resolve(refs[next++]).catch(() => {});
+    }),
+  );
+
   const imageErrors: ImportError[] = [];
   const questions: Question[] = [];
-  // Bilder nacheinander verarbeiten: Das begrenzt den Speicherbedarf (Container mit festem Limit)
   for (const [i, q] of (raw.questions as any[]).entries()) {
     let image: ImageRef | undefined;
     if (q.image) {
@@ -150,7 +191,7 @@ export async function importQuiz(body: Buffer, opts: ImportOptions): Promise<Imp
   }
 
   if (files) {
-    const unused = [...files.keys()].filter((k) => !used.has(k));
+    const unused = zipNames.filter((k) => !used.has(k));
     if (unused.length) warnings.push(`Nicht verwendete Bilder im ZIP: ${unused.slice(0, 5).join(', ')}${unused.length > 5 ? ' …' : ''}.`);
   }
 

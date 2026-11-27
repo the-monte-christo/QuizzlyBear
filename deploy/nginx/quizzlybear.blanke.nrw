@@ -22,7 +22,8 @@ server {
         include snippets/quizzlybear-headers.conf;
         client_max_body_size 45m;
         proxy_request_buffering off;
-        proxy_read_timeout 120s;
+        # Der Import lädt Bild-URLs höchstens 90 s lang; danach folgt nur noch das Umrechnen
+        proxy_read_timeout 180s;
         proxy_pass http://127.0.0.1:3070;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

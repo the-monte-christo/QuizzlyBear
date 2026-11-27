@@ -58,8 +58,9 @@ function isPrivate(ip: string): boolean {
  * Lädt ein Bild von einer http(s)-URL. Adressen im eigenen Netz werden abgelehnt,
  * damit der Server nicht als Sprungbrett auf interne Dienste taugt.
  */
-export async function fetchImage(url: string, allowPrivate = false): Promise<Buffer> {
+export async function fetchImage(url: string, allowPrivate = false, timeoutMs = 15_000): Promise<Buffer> {
   let current = url;
+  const until = Date.now() + timeoutMs; // gilt für das ganze Bild, auch über Weiterleitungen hinweg
   for (let hop = 0; hop < 4; hop++) {
     const u = new URL(current);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('nur http(s)-Adressen sind erlaubt');
@@ -70,7 +71,7 @@ export async function fetchImage(url: string, allowPrivate = false): Promise<Buf
     }
     const res = await fetch(u, {
       redirect: 'manual',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(Math.max(1, until - Date.now())),
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; image-import)', Accept: 'image/*' },
     });
     if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
