@@ -200,7 +200,9 @@ describe('importQuiz', () => {
   it('lässt sich von einem ZIP mit gelogener Größenangabe nicht aufblähen', async () => {
     const q = base();
     q.questions[0].image = 'img/bombe.png';
-    const zeros = new Uint8Array(8 * 1024 * 1024); // komprimiert wenige Kilobyte
+    // 48 MB Nullen, komprimiert rund 50 Kilobyte. Die krumme Länge kommt in den übrigen Bytes des ZIP
+    // nicht zufällig vor (unten werden genau zwei Fundstellen erwartet).
+    const zeros = new Uint8Array(48 * 1024 * 1024 + 12345);
     const honest = zipSync({ 'quiz.json': strToU8(JSON.stringify(q)), 'img/bombe.png': zeros }, { level: 9 });
     expect(honest.length).toBeLessThan(64 * 1024);
 
@@ -219,7 +221,10 @@ describe('importQuiz', () => {
     const before = process.memoryUsage().rss;
     const err = await failure(importQuiz(Buffer.from(lying), { dataDir }));
     expect(err.errors[0].message).toContain('kein verwendbares Bild');
-    expect(process.memoryUsage().rss - before).toBeLessThan(6 * 1024 * 1024);
+    // Der belegte Speicher schwankt von selbst um einige Megabyte (Speicherbereinigung, andere Tests,
+    // Last auf der Maschine). Die Grenze liegt deshalb weit über diesem Rauschen und weit unter den
+    // 48 MB, die ein Aufblähen kosten würde – mit einer knappen Grenze fiel der Test unter Last gelegentlich durch.
+    expect(process.memoryUsage().rss - before).toBeLessThan(24 * 1024 * 1024);
   });
 
   it('lehnt ZIPs ab, die entpackt über der Grenze liegen, und Dateitypen außerhalb der Liste', async () => {
