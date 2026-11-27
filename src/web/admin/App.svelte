@@ -6,6 +6,7 @@
   import { TYPE_LABELS } from '../../types/labels';
   import type { QuestionType } from '../../shared/quiz';
   import { api, ApiError, type GameSummary, type ImportError, type QuizSummary, type User } from './api';
+  import CoordHelper from './CoordHelper.svelte';
 
   let user = $state<User | null>(null);
   let loading = $state(true);
@@ -288,6 +289,7 @@
         <a href="/schema/quiz.schema.json" target="_blank" rel="noopener">JSON-Schema</a> ·
         <a href="/schema/beispiel-quiz.zip" download>Beispiel-Quiz mit allen Fragetypen (ZIP)</a>
       </p>
+      <CoordHelper />
     </section>
 
     <section class="account">

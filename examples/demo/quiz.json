@@ -1,7 +1,7 @@
 {
   "$schema": "../../schema/quiz.schema.json",
   "title": "QuizzlyBear-Demo: alle Fragetypen",
-  "description": "Zehn Fragen, jeder Fragetyp mindestens einmal – zum Ausprobieren und als Vorlage.",
+  "description": "Elf Fragen, jeder Fragetyp mindestens einmal – zum Ausprobieren und als Vorlage.",
   "settings": {
     "phone": { "showQuestion": true, "showAnswerText": true },
     "streak": { "bonus": 100, "max": 500 },
@@ -67,6 +67,22 @@
       "image": "img/sticker.jpg",
       "time": 20,
       "answer": { "x": 0.622, "y": 0.815, "tolerance": 0.07, "maxDistance": 0.3 }
+    },
+    {
+      "type": "pin",
+      "text": "Tippe auf eine rote Frucht.",
+      "image": "img/sticker.jpg",
+      "time": 20,
+      "answer": {
+        "area": [
+          [[0.095, 0.39], [0.23, 0.39], [0.23, 0.615], [0.095, 0.615]],
+          [[0.765, 0.39], [0.93, 0.39], [0.93, 0.61], [0.765, 0.61]],
+          [[0.083, 0.7], [0.24, 0.7], [0.24, 0.925], [0.083, 0.925]],
+          [[0.553, 0.7], [0.697, 0.7], [0.697, 0.925], [0.553, 0.925]]
+        ],
+        "maxDistance": 0.1
+      },
+      "explanation": "Erdbeere, Kirschen, Apfel und Himbeere zählen."
     },
     {
       "type": "circle",

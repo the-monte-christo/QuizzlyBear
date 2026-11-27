@@ -182,12 +182,40 @@ mindestens 0,5. Umfragen verändern die Serie nicht.
 ```
 
 - `image` ist Pflicht.
-- `x`, `y`: Lösung als **normierte Koordinaten von 0 bis 1**. `x: 0` ist der linke Rand, `x: 1` der
+- Das Ziel ist **entweder ein Punkt** (`x` und `y`) **oder eine Fläche** (`area`), nicht beides.
+- `x`, `y`: Ziel als **normierte Koordinaten von 0 bis 1**. `x: 0` ist der linke Rand, `x: 1` der
   rechte, `y: 0` der obere, `y: 1` der untere. Die Bildmitte ist `0.5 / 0.5`.
 - Umrechnung aus Pixeln: `x = Pixel_x / Bildbreite`, `y = Pixel_y / Bildhöhe`.
-- `tolerance`: optional, Standard `0.04`. Abstand in **Bildbreiten**, bis zu dem es volle Punkte gibt.
-- `maxDistance`: optional, Standard `0.3`. Abstand, ab dem es 0 Punkte gibt. Dazwischen fallen die
-  Punkte linear.
+- `tolerance`: optional. Abstand in **Bildbreiten**, bis zu dem es volle Punkte gibt. Standard beim
+  Punkt `0.04`, bei einer Fläche `0`.
+- `maxDistance`: optional. Abstand, ab dem es 0 Punkte gibt. Dazwischen fallen die Punkte linear.
+  Standard beim Punkt `0.3`, bei einer Fläche `0.15`.
+
+**Ziel als Fläche** – für ein Land auf einer Karte oder einen Gegenstand im Wimmelbild:
+
+```json
+{
+  "type": "pin",
+  "text": "Tippe auf eine rote Frucht.",
+  "image": "img/sticker.jpg",
+  "answer": {
+    "area": [
+      [[0.095, 0.39], [0.23, 0.39], [0.23, 0.615], [0.095, 0.615]],
+      [[0.765, 0.39], [0.93, 0.39], [0.93, 0.61], [0.765, 0.61]]
+    ],
+    "maxDistance": 0.1
+  }
+}
+```
+
+- `area` ist eine Liste von Vielecken. Jedes Vieleck ist eine Liste von Eckpunkten `[x, y]`, der
+  Reihe nach am Umriss entlang, mindestens drei. Es wird automatisch geschlossen.
+- Ein Treffer in einem der Vielecke gibt volle Punkte. Mehrere Vielecke braucht man für getrennte
+  Teile, etwa ein Land mit Inseln oder mehrere gültige Ziele.
+- Außerhalb zählt der Abstand zur nächsten Kante: bis `tolerance` volle Punkte, ab `maxDistance` keine.
+- Löcher in einer Fläche gibt es nicht. Der Umriss darf sich nicht selbst überkreuzen.
+- **Koordinaten nicht von Hand ausrechnen:** Die Quizmaster-Seite hat einen Koordinaten-Helfer. Bild
+  wählen, Umriss anklicken, das fertige `answer`-Objekt kopieren.
 
 ### `circle`: Kreis ziehen
 
@@ -262,6 +290,8 @@ Alle Angaben sind optional. Hier stehen die Standardwerte:
 - `correct` zählt ab 0. Bei vier Optionen ist die letzte `3`, nicht `4`.
 - `order.items` steht in der richtigen Reihenfolge, nicht gemischt.
 - Koordinaten bei `pin` und `circle` liegen zwischen 0 und 1, es sind keine Pixel.
+- `area` hat drei Klammer-Ebenen: Liste der Vielecke, Vieleck, Eckpunkt. Auch ein einzelnes Vieleck
+  steht in der äußeren Liste: `"area": [[[0.2, 0.3], [0.5, 0.3], [0.5, 0.6]]]`.
 - Ein Verweis auf eine Umfrage braucht deren `id`, und die Umfrage muss weiter oben stehen.
 - Zahlen stehen ohne Anführungszeichen: `"correct": 71`, nicht `"correct": "71"`.
 - Kein Komma nach dem letzten Eintrag einer Liste oder eines Objekts.

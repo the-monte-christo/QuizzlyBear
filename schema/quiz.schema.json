@@ -380,38 +380,55 @@
     },
     "answer_pin": {
       "type": "object",
-      "description": "Punkt auf dem Fragebild setzen (die Frage braucht ein „image“). Punkte nach Entfernung zur Lösung, unabhängig von der Zeit. Abstände zählen in Bildbreiten.",
-      "required": [
-        "x",
-        "y"
-      ],
+      "description": "Punkt auf dem Fragebild setzen (die Frage braucht ein „image“). Das Ziel ist entweder ein Punkt („x“ und „y“) oder eine Fläche („area“) – nicht beides. Punkte nach Entfernung zum Ziel, unabhängig von der Zeit. Abstände zählen in Bildbreiten.",
       "additionalProperties": false,
       "properties": {
         "x": {
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Waagerechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+          "description": "Waagerechte Position des Zielpunkts als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
         },
         "y": {
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Senkrechte Position der Lösung als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+          "description": "Senkrechte Position des Zielpunkts als Anteil der Bildgröße: 0 = links/oben, 1 = rechts/unten. Beispiel: Bildmitte = 0.5."
+        },
+        "area": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "description": "Ziel als Fläche: eine Liste von Vielecken, jedes eine Liste von Eckpunkten [x, y] (normiert, 0–1). Ein Treffer in einem der Vielecke gibt volle Punkte. Mehrere Vielecke z. B. für ein Land mit Inseln. Beispiel für ein Rechteck: [[[0.2, 0.3], [0.5, 0.3], [0.5, 0.6], [0.2, 0.6]]].",
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 300,
+            "description": "Ein Vieleck mit mindestens drei Eckpunkten, der Reihe nach am Umriss entlang. Es wird automatisch geschlossen.",
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "description": "Eckpunkt [x, y]."
+            }
+          }
         },
         "tolerance": {
           "type": "number",
-          "exclusiveMinimum": 0,
+          "minimum": 0,
           "maximum": 1,
-          "default": 0.04,
-          "description": "Abstand in Bildbreiten, bis zu dem es volle Punkte gibt (0.04 = 4 % der Bildbreite)."
+          "description": "Abstand in Bildbreiten, bis zu dem es volle Punkte gibt. Standard beim Punkt 0.04 (4 % der Bildbreite), bei einer Fläche 0 (nur Treffer in der Fläche)."
         },
         "maxDistance": {
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 2,
-          "default": 0.3,
-          "description": "Abstand in Bildbreiten, ab dem es 0 Punkte gibt. Dazwischen fallen die Punkte linear."
+          "description": "Abstand in Bildbreiten, ab dem es 0 Punkte gibt; dazwischen fallen die Punkte linear. Standard beim Punkt 0.3, bei einer Fläche 0.15 (gemessen ab dem Rand der Fläche)."
         }
       }
     },

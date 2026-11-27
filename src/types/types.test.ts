@@ -12,7 +12,7 @@ import { match } from './match/logic';
 import { mcma, mcmaFraction } from './mcma/logic';
 import { mcsa } from './mcsa/logic';
 import { order } from './order/logic';
-import { imageDistance, pin, pinFraction } from './pin/logic';
+import { areaDistance, imageDistance, insidePolygon, pin, pinFraction, type Polygon } from './pin/logic';
 import { poll } from './poll/logic';
 
 const rng = () => createRng(42);
@@ -207,6 +207,69 @@ describe('pin', () => {
     expect(pin.parse(null, a, {})).toBeNull();
     expect(pin.needsImage).toBe(true);
     expect(pin.check({ x: 0.5, y: 0.5, tolerance: 0.5, maxDistance: 0.2 }, noPolls)[0]).toContain('kleiner als');
+  });
+});
+
+describe('pin mit Zielfläche', () => {
+  // ein „L“: links ein hoher Balken, unten ein Fuß nach rechts (nicht konvex)
+  const L: Polygon = [
+    [0.2, 0.2],
+    [0.4, 0.2],
+    [0.4, 0.6],
+    [0.8, 0.6],
+    [0.8, 0.8],
+    [0.2, 0.8],
+  ];
+  const island: Polygon = [
+    [0.9, 0.1],
+    [0.98, 0.1],
+    [0.98, 0.18],
+    [0.9, 0.18],
+  ];
+  const a = { area: [L, island] };
+
+  it('erkennt Punkte innerhalb und außerhalb, auch bei nicht konvexen Flächen', () => {
+    expect(insidePolygon({ x: 0.3, y: 0.3 }, L)).toBe(true);
+    expect(insidePolygon({ x: 0.7, y: 0.7 }, L)).toBe(true);
+    expect(insidePolygon({ x: 0.6, y: 0.4 }, L)).toBe(false); // in der Einbuchtung des L
+    expect(insidePolygon({ x: 0.1, y: 0.5 }, L)).toBe(false);
+  });
+
+  it('gibt in jeder Teilfläche volle Punkte', () => {
+    expect(pinFraction(a, { x: 0.3, y: 0.5 }, 1)).toBe(1);
+    expect(pinFraction(a, { x: 0.94, y: 0.14 }, 1)).toBe(1); // die Insel zählt auch
+    expect(pin.score(a, { x: 0.3, y: 0.5 }, ctx)).toEqual({ fraction: 1, correct: true });
+  });
+
+  it('misst außerhalb den Abstand zur nächsten Kante und fällt linear bis maxDistance', () => {
+    expect(areaDistance(a.area, { x: 0.1, y: 0.5 }, 1)).toBeCloseTo(0.1); // 0.1 links vom Balken
+    expect(areaDistance(a.area, { x: 0.5, y: 0.5 }, 1)).toBeCloseTo(0.1); // in der Einbuchtung, 0.1 neben beiden Kanten
+    expect(areaDistance(a.area, { x: 0.1, y: 0.1 }, 1)).toBeCloseTo(Math.hypot(0.1, 0.1)); // zur Ecke
+    // Standard bei Flächen: Toleranz 0, maxDistance 0.15
+    expect(pinFraction(a, { x: 0.125, y: 0.5 }, 1)).toBeCloseTo(0.5);
+    expect(pinFraction(a, { x: 0.04, y: 0.5 }, 1)).toBe(0);
+    expect(pinFraction({ ...a, tolerance: 0.05, maxDistance: 0.25 }, { x: 0.15, y: 0.5 }, 1)).toBe(1);
+    expect(pinFraction({ ...a, tolerance: 0.05, maxDistance: 0.25 }, { x: 0.05, y: 0.5 }, 1)).toBeCloseTo(0.5);
+  });
+
+  it('rechnet senkrechte Abstände mit dem Seitenverhältnis um', () => {
+    // Bild doppelt so breit wie hoch: 0.1 unterhalb der Fläche sind nur 0.05 Bildbreiten
+    expect(areaDistance(a.area, { x: 0.5, y: 0.9 }, 0.5)).toBeCloseTo(0.05);
+    expect(areaDistance(a.area, { x: 0.5, y: 0.9 }, 1)).toBeCloseTo(0.1);
+  });
+
+  it('zählt Punkte genau auf der Kante als Treffer', () => {
+    expect(pinFraction(a, { x: 0.2, y: 0.5 }, 1)).toBe(1);
+    expect(pinFraction(a, { x: 0.8, y: 0.7 }, 1)).toBe(1);
+  });
+
+  it('verlangt genau ein Ziel und eine echte Fläche', () => {
+    expect(pin.check({}, noPolls)[0]).toContain('entweder');
+    expect(pin.check({ x: 0.5 }, noPolls)[0]).toContain('entweder');
+    expect(pin.check({ x: 0.5, y: 0.5, area: [L] }, noPolls)[0]).toContain('nur eines');
+    expect(pin.check({ area: [[[0.1, 0.1], [0.2, 0.2], [0.3, 0.3]]] }, noPolls)[0]).toContain('keinen Flächeninhalt');
+    expect(pin.check(a, noPolls)).toEqual([]);
+    expect(pin.solution(a, {})).toEqual({ x: undefined, y: undefined, area: a.area, tolerance: 0, maxDistance: 0.15 });
   });
 });
 

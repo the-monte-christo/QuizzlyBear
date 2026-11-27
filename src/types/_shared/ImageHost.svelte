@@ -13,7 +13,19 @@
     r?: number;
   }
   const marks = $derived<Mark[]>(reveal ? (mode === 'pin' ? reveal.summary.points : reveal.summary.circles) : []);
-  const solution = $derived(reveal ? (reveal.solution as { x: number; y: number; tolerance?: number }) : null);
+  type Polygon = [number, number][];
+  const solution = $derived(reveal ? (reveal.solution as { x?: number; y?: number; area?: Polygon[]; tolerance?: number }) : null);
+  const area = $derived(solution?.area ?? null);
+
+  // Haken-Marken: am Zielpunkt bzw. in der Mitte jedes Vielecks
+  const badges = $derived.by((): { x: number; y: number }[] => {
+    if (!solution) return [];
+    if (!area) return solution.x === undefined || solution.y === undefined ? [] : [{ x: solution.x, y: solution.y }];
+    return area.map((poly) => ({
+      x: poly.reduce((s, p) => s + p[0], 0) / poly.length,
+      y: poly.reduce((s, p) => s + p[1], 0) / poly.length,
+    }));
+  });
 </script>
 
 <div class="frame">
@@ -27,14 +39,23 @@
           <i class="guess pin" style="left:{m.x * 100}%;top:{m.y * 100}%;animation-delay:{Math.min(1.2, i * 0.05)}s"></i>
         {/if}
       {/each}
-      {#if solution}
-        {#if mode === 'pin' && solution.tolerance}
-          <i class="zone" style="left:{solution.x * 100}%;top:{solution.y * 100}%;width:{solution.tolerance * 200}%"></i>
-        {/if}
-        <div class="target" style="left:{solution.x * 100}%;top:{solution.y * 100}%">
+      {#if area}
+        <!-- Zielfläche: doppelte Kontur (dunkel + hell), damit sie auf jedem Bild sichtbar ist -->
+        <svg class="area" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          {#each area as poly, i (i)}
+            <polygon class="fill" points={poly.map((p) => p.join(',')).join(' ')} />
+            <polygon class="outer" points={poly.map((p) => p.join(',')).join(' ')} />
+            <polygon class="inner" points={poly.map((p) => p.join(',')).join(' ')} />
+          {/each}
+        </svg>
+      {:else if solution && mode === 'pin' && solution.tolerance && badges[0]}
+        <i class="zone" style="left:{badges[0].x * 100}%;top:{badges[0].y * 100}%;width:{solution.tolerance * 200}%"></i>
+      {/if}
+      {#each badges as b, i (i)}
+        <div class="target" class:small={badges.length > 1} style="left:{b.x * 100}%;top:{b.y * 100}%">
           <span class="badge"><Icon name="check" /></span>
         </div>
-      {/if}
+      {/each}
     </div>
   {/if}
 </div>
@@ -99,12 +120,39 @@
     box-shadow: 0 0 0 0.12rem var(--ink);
     animation: fade-in 0.5s 1.3s backwards;
   }
+  .area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: fade-in 0.6s 1.2s backwards;
+  }
+  .area polygon {
+    fill: none;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .area .fill {
+    fill: rgba(0, 143, 104, 0.24);
+  }
+  .area .outer {
+    stroke: var(--ink);
+    stroke-width: 0.5rem;
+  }
+  .area .inner {
+    stroke: #fff;
+    stroke-width: 0.22rem;
+  }
   /* Lösung: Haken-Marke, auf jedem Bild erkennbar */
   .target {
     position: absolute;
     width: 0;
     height: 0;
     z-index: 2;
+  }
+  .small {
+    font-size: 0.7rem;
+    scale: 0.7;
   }
   .badge {
     position: absolute;

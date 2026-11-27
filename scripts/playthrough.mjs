@@ -49,6 +49,23 @@ await host.click('button:has-text("Anmelden")');
 await host.waitForSelector('h2:has-text("Quizze")');
 await host.waitForTimeout(400);
 await snap(host, 'admin');
+
+// Koordinaten-Helfer: Bild laden, vier Ecken klicken, das JSON muss eine gültige Fläche sein
+await host.click('summary:has-text("Koordinaten-Helfer")');
+await host.setInputFiles('.helper input[type="file"]', 'examples/demo/img/sticker.jpg');
+await host.waitForSelector('.helper .pad img');
+await host.click('.helper button:has-text("Fläche")');
+await host.locator('.helper .pad').scrollIntoViewIfNeeded();
+await host.waitForTimeout(300);
+const padBox = await host.locator('.helper .pad').boundingBox();
+for (const [x, y] of [[0.1, 0.4], [0.23, 0.4], [0.23, 0.6], [0.1, 0.6]]) {
+  await host.mouse.click(padBox.x + padBox.width * x, padBox.y + padBox.height * y);
+}
+const helperJson = JSON.parse(`{${await host.locator('.helper pre').textContent()}}`);
+const corners = helperJson.answer?.area?.[0] ?? [];
+check(corners.length === 4 && Math.abs(corners[0][0] - 0.1) < 0.01 && Math.abs(corners[2][1] - 0.6) < 0.01, 'Koordinaten-Helfer liefert die geklickte Fläche');
+await snap(host, 'admin-helfer');
+await host.evaluate(() => scrollTo(0, 0));
 // nur Quiz-Karten haben den Start-Knopf (laufende Spiele stehen in derselben Liste darüber)
 await host.locator('.item:has(button:has-text("Spiel starten"))', { hasText: QUIZ }).first().locator('button:has-text("Spiel starten")').click();
 await host.waitForSelector('.pin .digit');
@@ -92,7 +109,8 @@ async function sortTo(page, texts) {
   }
 }
 
-async function answer(page, who, kind, q) {
+let estimates = 0; // die zweite Schätzfrage des Demo-Quiz fragt das Umfrage-Ergebnis ab (50 %)
+async function answer(page, who, kind) {
   const smart = who === 0;
   if (await page.locator('.pad').count()) {
     const box = await page.locator('.pad').boundingBox();
@@ -116,7 +134,7 @@ async function answer(page, who, kind, q) {
       await page.mouse.move(track.x + track.width * fraction, t.y + t.height / 2, { steps: 6 });
       await page.mouse.up();
     };
-    if ((await thumbs.count()) === 1) await drag(0, smart ? (q === 10 ? 0.5 : 0.71) : 0.25 + who * 0.17);
+    if ((await thumbs.count()) === 1) await drag(0, smart ? (estimates >= 2 ? 0.5 : 0.71) : 0.25 + who * 0.17);
     else {
       await drag(0, smart ? 0.5 : 0.08 * who);
       await drag(1, smart ? 0.6 : 0.35 + 0.2 * who);
@@ -179,7 +197,8 @@ for (let q = 1; ; q++) {
   }
 
   for (let i = 0; i < phones.length; i++) {
-    await answer(phones[i], i, kind, q);
+    if (i === 0 && kind === 'Schätzfrage') estimates++;
+    await answer(phones[i], i, kind);
     await phones[i].waitForTimeout(300);
     if (i === 0) await snap(phones[0], `phone-q${q}-${slug}-fertig`);
     if (q === 2 && i === 1) {
