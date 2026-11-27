@@ -48,6 +48,10 @@ npm run dev       # Server auf :3000, Oberfläche auf http://localhost:5173
 
 Eigenen Quizmaster anlegen: `npm run user:add -- <name> <passwort> [--admin]`.
 
+**Nach einem Wechsel der Node-Hauptversion** (etwa von 24 auf 26) einmal `npm rebuild better-sqlite3`
+ausführen. Sonst bricht der Server-Teil beim Start mit „was compiled against a different Node.js
+version“ ab, und die Oberfläche findet keinen Server.
+
 ## Quiz erstellen
 
 Hochgeladen wird auf der Quizmaster-Seite, entweder als ZIP (`quiz.json` + Ordner `img/`) oder als
