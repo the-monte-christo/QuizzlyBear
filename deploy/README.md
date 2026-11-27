@@ -1,8 +1,8 @@
 # Deployment auf quizzlybear.blanke.nrw
 
-Vorbereitet, aber noch nicht ausgeführt. Das Image wurde bisher nicht gebaut (auf dem
-Entwicklungsrechner gibt es kein Docker); der Produktions-Build selbst ist lokal getestet
-(`npm run build`, `npm start`).
+Gebaut wird auf dem Server (auf dem Entwicklungsrechner gibt es kein Docker). Vor dem ersten
+Start lief das Image als Probecontainer mit derselben Härtung, und `scripts/playthrough.mjs` hat
+darüber eine komplette Runde im Browser gespielt.
 
 ## Dateien
 
@@ -29,8 +29,9 @@ Entwicklungsrechner gibt es kein Docker); der Produktions-Build selbst ist lokal
 4. Zertifikat holen und nginx aktivieren, wie bei den anderen Diensten (erst Port 80 mit
    ACME-Webroot, dann die volle Konfiguration).
 5. Ersten Quizmaster anlegen: `ADMIN_USER` und `ADMIN_PASSWORD` in `.env` setzen und den Container
-   starten. Das wirkt nur, solange es noch keinen Benutzer gibt. Danach die beiden Zeilen wieder
-   entfernen; weitere Quizmaster legt der Admin auf der Quizmaster-Seite an.
+   starten. Das wirkt nur, solange es noch keinen Benutzer gibt. Nach der ersten Anmeldung das
+   Passwort auf der Quizmaster-Seite ändern und die beiden Zeilen wieder entfernen; weitere
+   Quizmaster legt der Admin auf der Quizmaster-Seite an.
 6. Abnahme: `curl -s http://127.0.0.1:3070/api/health` liefert `{"ok":true,"activeGames":0}`,
    die Seite lädt über HTTPS, der WebSocket verbindet (Lobby zeigt beitretende Spieler sofort).
 
@@ -51,6 +52,9 @@ Entwicklungsrechner gibt es kein Docker); der Produktions-Build selbst ist lokal
   nicht. Bei einem neuen Node-Sicherheits-Release die Version im `Dockerfile` und in
   `src/server/runtime.ts` anheben und neu bauen.
 - **Komprimierte Anfragen:** nginx und die App lehnen jede Anfrage mit `Content-Encoding` ab (415).
+- **Ratenlimit:** Der vHost hat ein eigenes, großzügigeres Limit (60 Anfragen/s, Burst 1200 je IP).
+  Ein Raum voller Handys im selben WLAN kommt von einer einzigen IP, und jedes Handy stellt beim
+  Öffnen der Seite 16 Anfragen. Anmeldung, PIN-Raten und Socket-Nachrichten begrenzt die App selbst.
 - **Speicher:** `mem_limit: 384m`. Uploads sind auf 40 MB begrenzt (`MAX_UPLOAD_MB`), nginx lässt
   auf `/api/quizzes` 45 MB durch.
 - **Caddy statt nginx:** Die ursprüngliche Aufgabenstellung nennt Caddy. Auf dem Server läuft

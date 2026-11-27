@@ -1,6 +1,16 @@
 # /etc/nginx/sites-available/quizzlybear.blanke.nrw
+
+# Eigenes Ratenlimit statt des globalen (30 r/s, Burst 200): Ein ganzer Raum spielt meist über
+# dasselbe WLAN und kommt damit von EINER IP. Ein Handy stellt beim Öffnen der Seite 16 Anfragen;
+# scannen 40 Leute gleichzeitig den QR-Code, sind das 640 auf einen Schlag. Mit dem globalen Limit
+# bekäme ein Teil davon 429 (weiße Seite), und fail2ban würde die IP des Raums für eine Stunde sperren.
+limit_req_zone $binary_remote_addr zone=quizzlybear_ip:2m rate=60r/s;
+
 server {
     server_name quizzlybear.blanke.nrw;
+
+    # ersetzt für diesen vHost das geerbte Limit aus conf.d/ratenlimit.conf (reicht für rund 75 Handys auf einmal)
+    limit_req zone=quizzlybear_ip burst=1200 nodelay;
 
     # Socket.io (WebSocket mit Polling als Rückfall)
     location /socket.io/ {

@@ -191,6 +191,8 @@ for (let q = 1; ; q++) {
     await boxes.nth(0).uncheck();
     await boxes.nth(1).uncheck();
     await phones[0].waitForSelector('.look');
+    // Die zweite Einstellung kommt über eine echte Netzwerkstrecke einen Moment später an als die erste
+    await phones[0].locator('.grid .opt .text').first().waitFor({ state: 'detached', timeout: 3000 }).catch(() => {});
     check((await phones[0].locator('.qtext').count()) === 0, 'Fragetext auf dem Handy ausgeblendet');
     check((await phones[0].locator('.grid .opt .text').count()) === 0, 'Antworttexte auf dem Handy ausgeblendet');
     check((await phones[0].locator('.grid .opt svg.shape').count()) > 1, 'Symbole bleiben sichtbar');
