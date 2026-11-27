@@ -1,0 +1,37 @@
+{
+  "bear-wave": {
+    "aspect": 0.9157,
+    "dur": 1.67,
+    "alternate": false
+  },
+  "bear-cheer": {
+    "aspect": 0.7384,
+    "dur": 1.75,
+    "alternate": false
+  },
+  "bear-think": {
+    "aspect": 0.584,
+    "dur": 2.16,
+    "alternate": true
+  },
+  "bear-trophy": {
+    "aspect": 0.7392,
+    "dur": 2.12,
+    "alternate": false
+  },
+  "herry-grin": {
+    "aspect": 0.5632,
+    "dur": 1.29,
+    "alternate": false
+  },
+  "herry-swim": {
+    "aspect": 1.9091,
+    "dur": 1.5,
+    "alternate": false
+  },
+  "herry-hey": {
+    "aspect": 0.731,
+    "dur": 1.54,
+    "alternate": false
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "bear-wave": { "from": 1.79, "to": 3.46, "islands": true },
+  "bear-cheer": { "from": 1.88, "to": 3.63 },
+  "bear-think": { "from": 0.42, "to": 2.58, "alternate": true },
+  "bear-trophy": { "from": 1.42, "to": 3.54, "islands": true },
+  "herry-grin": { "from": 1.13, "to": 2.42 },
+  "herry-swim": { "from": 1.54, "to": 3.04 },
+  "herry-hey": { "from": 1.29, "to": 2.83 }
+}

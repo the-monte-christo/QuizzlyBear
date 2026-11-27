@@ -18,6 +18,8 @@ Handy. Durch die Runde führen Quizzly, der Quizzlybär, und sein frecher Partne
   Quizmaster (`/admin/`, Login, Quizze hochladen, Runden starten).
 - **Neun Fragetypen:** eine Antwort, mehrere Antworten, Reihenfolge, Paare, Schätzfrage, Bereich,
   Punkt setzen, Kreis ziehen, Umfrage. Ein Umfrage-Ergebnis kann Lösung einer späteren Frage sein.
+  Bei „Punkt setzen“ kann das Ziel ein Punkt oder eine Fläche sein, etwa ein Land auf einer Karte;
+  die Quizmaster-Seite hat dafür einen Koordinaten-Helfer.
 - **Farbe plus Symbol:** Jede Antwortoption hat eine feste Farbe und ein festes Symbol. Richtig und
   falsch tragen immer Haken oder Kreuz. Die Palette ist an Okabe-Ito angelehnt.
 - **Antworten sind änderbar.** Es zählt die letzte Antwort samt ihrer Zeit. Gesperrt wird, wenn die
@@ -108,6 +110,18 @@ in `index.ts`, `player.ts`, `host.ts` und `labels.ts` eintragen, den Typnamen in
   ausführen. `bg-*.jpg` wird zum Hintergrund (Host 16:9, Handy als Hochformat-Ausschnitt),
   `sheet-*.jpg` wird in Einzelsticker zerlegt. Welche Sticker wo schweben, steht in
   `src/web/lib/deco.ts`.
+- **Stimmungen:** Welche Figur mit welchem Spruch auf ein Ergebnis reagiert, steht in
+  `src/web/lib/moods.ts`. Die Figuren freuen sich mit, staunen oder leiden mit; ausgelacht wird
+  niemand. Die Auswahl wechselt je Frage und Spieler.
+- **Figuren-Animationen:** Sieben Posen bewegen sich (Quizzly winkt, jubelt, grübelt, stemmt den
+  Pokal; Herry winkt, grinst fies, schwimmt). Jede ist ein 4×4-Raster aus 16 Einzelbildern als
+  WebP, abgespielt per CSS-Keyframe mit Sprüngen. Das kostet keinen Video-Decoder und keinen Filter;
+  die Bildabstände auf dem Host sind mit und ohne Animation gleich (`scripts/measure-anim.mjs`).
+  Neue Animation: Pose mit `node scripts/anim-start.mjs <pose>` als Startbild im Videoformat
+  aufbereiten, daraus ein kurzes Video mit unverändertem hellgrauem Hintergrund erzeugen, als
+  `art/video/<pose>.mp4` ablegen, mit `node scripts/build-anim.mjs --analyze <pose>` eine nahtlose
+  Schleife suchen, in `art/video/anims.json` eintragen und `node scripts/build-anim.mjs` ausführen.
+  Die Videos selbst liegen nicht im Repo.
 
 ## Befehle
 
@@ -119,6 +133,8 @@ in `index.ts`, `player.ts`, `host.ts` und `labels.ts` eintragen, den Typnamen in
 | `npm run build` / `npm start` | Produktions-Build bauen und starten |
 | `npm run build:schema` | Schema und Beispiel-ZIP neu erzeugen |
 | `npm run build:assets` | Grafiken aus `art/src` freistellen und als WebP schreiben |
+| `node scripts/build-anim.mjs` | Figuren-Animationen aus `art/video` bauen (braucht ffmpeg) |
+| `node scripts/measure-anim.mjs` | Bildabstände auf dem Host mit und ohne Animation messen |
 | `node scripts/playthrough.mjs` | komplette Runde im Browser (Edge) durchspielen, Screenshots nach `screenshots/` |
 
 Der Browser-Durchlauf bedient jeden Fragetyp wirklich, lädt ein Handy mitten in der Frage neu und

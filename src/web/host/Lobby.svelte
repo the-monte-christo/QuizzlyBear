@@ -223,9 +223,9 @@
   }
   .lobby :global(.bear) {
     position: absolute;
-    left: 33rem;
+    left: 32rem;
     bottom: -3rem;
-    width: 15rem;
+    width: 17.5rem;
     --tilt: 4deg;
   }
   /* Herry lugt vom rechten Rand herein */

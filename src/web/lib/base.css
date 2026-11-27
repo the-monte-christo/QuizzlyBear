@@ -246,6 +246,28 @@ button:focus-visible {
   to { opacity: 1; }
 }
 
+/* Figuren-Animation: 16 Einzelbilder im 4×4-Raster, jedes Bild steht bis zum nächsten Sprung.
+   Die Prozentwerte beziehen sich auf das Raster selbst (25 % = ein Einzelbild). */
+@keyframes sprite-16 {
+  0% { transform: translate(0%, 0%); animation-timing-function: step-end; }
+  6.25% { transform: translate(-25%, 0%); animation-timing-function: step-end; }
+  12.5% { transform: translate(-50%, 0%); animation-timing-function: step-end; }
+  18.75% { transform: translate(-75%, 0%); animation-timing-function: step-end; }
+  25% { transform: translate(0%, -25%); animation-timing-function: step-end; }
+  31.25% { transform: translate(-25%, -25%); animation-timing-function: step-end; }
+  37.5% { transform: translate(-50%, -25%); animation-timing-function: step-end; }
+  43.75% { transform: translate(-75%, -25%); animation-timing-function: step-end; }
+  50% { transform: translate(0%, -50%); animation-timing-function: step-end; }
+  56.25% { transform: translate(-25%, -50%); animation-timing-function: step-end; }
+  62.5% { transform: translate(-50%, -50%); animation-timing-function: step-end; }
+  68.75% { transform: translate(-75%, -50%); animation-timing-function: step-end; }
+  75% { transform: translate(0%, -75%); animation-timing-function: step-end; }
+  81.25% { transform: translate(-25%, -75%); animation-timing-function: step-end; }
+  87.5% { transform: translate(-50%, -75%); animation-timing-function: step-end; }
+  93.75% { transform: translate(-75%, -75%); animation-timing-function: step-end; }
+  100% { transform: translate(-75%, -75%); }
+}
+
 .pop-in { animation: pop-in 0.45s var(--ease-pop) both; }
 .rise-in { animation: rise-in 0.45s var(--ease-out) both; }
 .drop-in { animation: drop-in 0.5s var(--ease-pop) both; }

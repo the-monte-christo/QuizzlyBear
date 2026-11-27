@@ -153,8 +153,19 @@ class PlayerGame {
     this.socket.disconnect().connect();
   }
 
+  /** Lädt die Figuren-Animationen der Ergebnis-Bildschirme vor, solange in der Lobby nichts los ist. */
+  private warmed = false;
+  private warmUp() {
+    if (this.warmed) return;
+    this.warmed = true;
+    setTimeout(() => {
+      for (const name of ['bear-cheer', 'bear-think', 'herry-grin']) new Image().src = `/art/anim-${name}-s.webp`;
+    }, 1500);
+  }
+
   private onState(s: PlayerState) {
     this.restoring = false;
+    this.warmUp();
     this.error = '';
     this.state = s;
     const q = s.question;

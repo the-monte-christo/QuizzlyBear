@@ -23,3 +23,8 @@ test-results/
 
 # Vorschau der Freistellung
 art/debug/
+
+# Video-Clips der Figuren-Animationen: groß und aus dem Bildgenerator neu erzeugbar.
+# Im Repo liegen die fertigen Bildraster (src/web/public/art/anim-*.webp) und art/video/anims.json.
+art/video/*.mp4
+art/video/start-*.jpg

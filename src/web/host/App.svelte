@@ -139,7 +139,7 @@
         <p class="hint plate">{TYPE_LABELS[s.question.type].hint}</p>
         <!-- Herry schießt einmal quer durchs Bild -->
         {#key s.question.index}
-          <img class="swim" src="/art/herry-swim.webp" alt="" />
+          <Sticker name="herry-swim" class="swim" />
         {/key}
       </div>
     {:else if view === 'question' || view === 'reveal'}
@@ -313,7 +313,7 @@
     font-size: 2.4rem;
     font-weight: 650;
   }
-  .swim {
+  .countdown :global(.swim) {
     position: absolute;
     left: 0;
     top: 62%;
