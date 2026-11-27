@@ -195,7 +195,8 @@ for (let q = 1; ; q++) {
   await host.waitForTimeout(2600);
   await snap(host, `host-q${q}-${slug}-aufloesung`);
   await snap(phones[0], `phone-q${q}-${slug}-ergebnis`);
-  if (q === 2 && phones[1]) await snap(phones[1], `phone-q${q}-ergebnis-falsch`);
+  // zweites Handy streut seine Antworten: zeigt die Reaktionen auf falsch und teilweise richtig
+  if (phones[1]) await snap(phones[1], `phone-q${q}-${slug}-ergebnis-b`);
 
   const label = (await host.locator('.btn.next').textContent()).trim();
   console.log(`Frage ${q} (${kind}) → ${label}`);
@@ -205,7 +206,8 @@ for (let q = 1; ; q++) {
     await host.waitForSelector('.board');
     await host.waitForTimeout(2600);
     if (q === 3 || q === 6) await snap(host, `host-q${q}-rangliste`);
-    if (q === 3) await snap(phones[1], `phone-q${q}-platz`);
+    await snap(phones[1], `phone-q${q}-platz`);
+    if (phones[2]) await snap(phones[2], `phone-q${q}-platz-c`);
   }
 }
 

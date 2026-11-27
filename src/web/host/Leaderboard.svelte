@@ -4,11 +4,14 @@
   import { flip } from 'svelte/animate';
   import CountUp from '../lib/CountUp.svelte';
   import Icon from '../lib/Icon.svelte';
+  import { HOST_BOARD, pick } from '../lib/moods';
   import Sticker from '../lib/Sticker.svelte';
   import type { LeaderRow } from '../../shared/protocol';
   import { game } from './game.svelte';
 
   const rows = $derived(game.state!.leaderboard ?? []);
+  // nach jeder Frage lungern andere Posen an der Rangliste
+  const turn = $derived(Math.max(0, game.state!.qIndex));
   const moved = $derived(rows.some((r) => r.prevRank !== null && r.prevRank !== r.rank));
 
   let settled = $state(false);
@@ -46,9 +49,9 @@
     {/each}
   </ol>
 
-  <Sticker name="bear-think" class="bear bob" />
+  <Sticker name={pick(HOST_BOARD.bear, turn)} class="bear bob" />
   <!-- Herry hängt frech an der Ecke der Rangliste -->
-  <Sticker name="herry-tongue" class="herry wiggle" ground={false} />
+  <Sticker name={pick(HOST_BOARD.herry, turn)} class="herry wiggle" ground={false} />
 </div>
 
 <style>

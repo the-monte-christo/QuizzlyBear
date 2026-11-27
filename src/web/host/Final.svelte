@@ -70,7 +70,7 @@
   </div>
 
   {#if done}
-    <Sticker name="herry-shock" class="herry pop-in" />
+    <Sticker name="herry-wow" class="herry pop-in" />
   {/if}
 </div>
 

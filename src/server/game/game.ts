@@ -468,7 +468,7 @@ export class Game {
     const state: PlayerState = {
       ...this.base(),
       role: 'player',
-      me: { id: p.id, name: p.name, score: p.score, rank: p.rank, streak: p.streak },
+      me: { id: p.id, name: p.name, score: p.score, rank: p.rank, prevRank: p.prevRank, streak: p.streak },
       playerCount: this.players.size,
       myAnswer: cur && mine && this.phase !== 'lobby' && this.phase !== 'final' ? mine : undefined,
       result: afterReveal && cur && p.last?.qIndex === cur.index ? p.last : undefined,

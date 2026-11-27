@@ -1,6 +1,7 @@
 <script lang="ts">
   import Backdrop from '../lib/Backdrop.svelte';
   import Icon from '../lib/Icon.svelte';
+  import { FINAL, pick, RANK, seedOf, type Mood } from '../lib/moods';
   import Sticker from '../lib/Sticker.svelte';
   import { TYPE_LABELS } from '../../types/labels';
   import { game } from './game.svelte';
@@ -21,7 +22,22 @@
     return () => clearInterval(t);
   });
 
-  const medal = (rank: number) => (rank === 1 ? 'bear-trophy' : rank <= 3 ? 'bear-cheer' : 'bear-wave');
+  const seed = $derived(s ? seedOf(s.me.id) : 0);
+
+  // Rangliste: vorn, aufgeholt, zurückgefallen oder unverändert
+  const rankMood = $derived.by((): Mood | null => {
+    if (!s) return null;
+    const { rank, prevRank } = s.me;
+    const pool = rank === 1 ? RANK.first : prevRank === null || prevRank === rank ? RANK.same : rank < prevRank ? RANK.up : RANK.down;
+    return pick(pool, seed, s.qIndex);
+  });
+
+  const finalMood = $derived.by((): Mood | null => {
+    if (!s?.final) return null;
+    if (!s.final.revealed) return pick(FINAL.secret, seed);
+    const pool = s.final.rank === 1 ? FINAL.winner : s.final.rank <= 3 ? FINAL.podium : FINAL.rest;
+    return pick(pool, seed);
+  });
 </script>
 
 <Backdrop variant="phone" mood={view === 'join' || view === 'lobby' || view === 'final' ? 'full' : 'none'} />
@@ -56,33 +72,38 @@
     <QuestionView />
   {:else if view === 'reveal' && s.question}
     <ResultView />
-  {:else if view === 'leaderboard'}
+  {:else if view === 'leaderboard' && rankMood}
     <div class="center">
-      <Sticker name={s.me.rank === 1 ? 'bear-cheer' : 'bear-think'} small class="mascot bob" />
-      <div class="card note pop-in">
-        <p class="muted">Du bist auf</p>
-        <p class="rank">Platz {s.me.rank}</p>
-        {#if s.ahead}
-          <p class="gap">Noch <b>{s.ahead.gap}</b> Punkte bis {s.ahead.name}</p>
-        {:else}
-          <p class="gap">Ganz vorn – halt die Stellung!</p>
-        {/if}
-      </div>
+      {#key s.qIndex}
+        <Sticker name={rankMood.art} small class="mascot bob" />
+        <div class="card note pop-in">
+          <p class="muted">Du bist auf</p>
+          <p class="rank">Platz {s.me.rank}</p>
+          {#if s.ahead && s.ahead.gap > 0}
+            <p class="gap">Noch <b>{s.ahead.gap}</b> Punkte bis {s.ahead.name}</p>
+          {:else if s.ahead}
+            <p class="gap">Punktgleich mit {s.ahead.name}</p>
+          {/if}
+          <p class="line">{rankMood.line}</p>
+        </div>
+      {/key}
     </div>
   {:else if view === 'final' && s.final}
     <div class="center">
-      {#if !s.final.revealed}
-        <Sticker name="herry-shock" small class="mascot wiggle" />
+      {#if !s.final.revealed && finalMood}
+        <Sticker name={finalMood.art} small class="mascot wiggle" />
         <div class="card note pop-in">
           <p class="big">Du bist unter den Besten!</p>
           <p class="muted">Schau auf den großen Bildschirm …</p>
+          <p class="line">{finalMood.line}</p>
         </div>
-      {:else}
-        <Sticker name={medal(s.final.rank)} small class="mascot bob" />
+      {:else if finalMood}
+        <Sticker name={finalMood.art} small class="mascot bob" />
         <div class="card note pop-in">
           <p class="muted">Endstand</p>
           <p class="rank">Platz {s.final.rank}</p>
           <p class="gap">von {s.final.total} · {s.final.score} Punkte</p>
+          <p class="line">{finalMood.line}</p>
           <div class="stats">
             <span class="pill"><Icon name="check" /> {s.final.correct} richtig</span>
             <span class="pill"><Icon name="flame" /> Beste Serie {s.final.maxStreak}</span>
@@ -141,6 +162,10 @@
     line-height: 1;
   }
   .gap {
+    font-weight: 600;
+  }
+  .line {
+    color: var(--ink-2);
     font-weight: 600;
   }
   .stats {

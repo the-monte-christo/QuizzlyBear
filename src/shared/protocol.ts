@@ -112,7 +112,7 @@ export interface PlayerResult {
 
 export interface PlayerState extends BaseState {
   role: 'player';
-  me: { id: string; name: string; score: number; rank: number; streak: number };
+  me: { id: string; name: string; score: number; rank: number; prevRank: number | null; streak: number };
   playerCount: number;
   myAnswer?: { value: any; ms: number; seq: number };
   result?: PlayerResult;

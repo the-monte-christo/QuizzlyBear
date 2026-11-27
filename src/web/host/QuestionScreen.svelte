@@ -2,7 +2,8 @@
   // Frage und Auflösung auf dem Host-Screen. Die Typ-Komponente bleibt von der Frage bis zur
   // Auflösung dieselbe Instanz, damit sie ihren Übergang selbst animieren kann.
   import Icon from '../lib/Icon.svelte';
-  import Sticker, { type Art } from '../lib/Sticker.svelte';
+  import { HOST_REVEAL, pick, type Mood } from '../lib/moods';
+  import Sticker from '../lib/Sticker.svelte';
   import TimerBar from '../lib/TimerBar.svelte';
   import { HOST_UI } from '../../types/host';
   import { TYPE_LABELS } from '../../types/labels';
@@ -21,16 +22,24 @@
   );
 
   // Wer kommentiert die Auflösung? Meist Quizzly – manchmal funkt Herry dazwischen.
-  const reaction = $derived.by((): { art: Art; text: string } | null => {
+  const reaction = $derived.by((): Mood | null => {
     if (!reveal) return null;
-    if (q.scoring === 'none') return { art: 'bear-wave', text: 'So denkt die Runde.' };
-    if (reveal.answered === 0) return { art: 'herry-laugh', text: 'Niemand? Herry lacht sich kaputt.' };
     const share = reveal.correct / Math.max(1, reveal.players);
-    if (share >= 0.99) return { art: 'herry-shock', text: 'Alle richtig?! Herry ist sprachlos.' };
-    if (share >= 0.6) return { art: 'bear-cheer', text: 'Stark gespielt!' };
-    if (share > 0.25) return { art: 'bear-think', text: 'Gar nicht so einfach …' };
-    if (share > 0) return { art: 'herry-tongue', text: 'Herry findet: zu leicht für ihn.' };
-    return { art: 'herry-laugh', text: 'Keiner richtig – Herry feiert.' };
+    const pool =
+      q.scoring === 'none'
+        ? HOST_REVEAL.poll
+        : reveal.answered === 0
+          ? HOST_REVEAL.nobody
+          : share >= 0.99
+            ? HOST_REVEAL.all
+            : share >= 0.6
+              ? HOST_REVEAL.most
+              : share > 0.25
+                ? HOST_REVEAL.some
+                : share > 0
+                  ? HOST_REVEAL.few
+                  : HOST_REVEAL.zero;
+    return pick(pool, q.index);
   });
 </script>
 
@@ -52,7 +61,7 @@
       {#if reaction}
         <!-- Kommentar von Quizzly oder Herry: Sprechblase in der Zeile, Figur im rechten Rand -->
         <div class="reaction">
-          <span class="bubble pop-in">{reaction.text}</span>
+          <span class="bubble pop-in">{reaction.line}</span>
           <Sticker name={reaction.art} class="pop-in" />
         </div>
       {/if}

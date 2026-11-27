@@ -1,18 +1,7 @@
 <script lang="ts" module>
   // Figuren als WebP. `small` lädt die Handy-Variante (halbe Kantenlänge).
-  export type Art =
-    | 'bear-wave'
-    | 'bear-think'
-    | 'bear-cheer'
-    | 'bear-oops'
-    | 'bear-trophy'
-    | 'bear-clock'
-    | 'bear-head'
-    | 'herry-hey'
-    | 'herry-laugh'
-    | 'herry-tongue'
-    | 'herry-swim'
-    | 'herry-shock';
+  import type { Art } from './art';
+  export type { Art };
 
   // Diese Klassen bewegen nur die Figur selbst – ihr Bodenschatten bleibt liegen
   const MOTION = new Set(['bob', 'wiggle']);

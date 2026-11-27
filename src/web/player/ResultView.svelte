@@ -1,37 +1,34 @@
 <script lang="ts">
   // Auflösung auf dem Handy: richtig/falsch immer mit Symbol + Text, dazu Punkte und Serie.
+  // Welche Figur mit welchem Spruch erscheint, kommt aus den Pools in lib/moods.ts.
   import Icon from '../lib/Icon.svelte';
-  import Sticker, { type Art } from '../lib/Sticker.svelte';
+  import { pick, RESULT, seedOf, type Mood } from '../lib/moods';
+  import Sticker from '../lib/Sticker.svelte';
   import { game } from './game.svelte';
 
   const s = $derived(game.state!);
   const r = $derived(s.result);
   const q = $derived(s.question!);
 
-  // Herry, der kleine Störenfried, kommentiert Fehlversuche
-  const TEASE = [
-    'Herry lacht sich schlapp.',
-    'Herry meint: Das war wohl nix.',
-    'Herry kichert. Einfach ignorieren.',
-    'Herry hätte es auch nicht gewusst.',
-    'Herry sagt: Knapp daneben ist auch vorbei.',
-  ];
+  type Tone = 'ok' | 'bad' | 'mid' | 'none';
+  type Verdict = { title: string; tone: Tone; pool: readonly Mood[] };
 
-  type Mood = { art: Art; title: string; tone: 'ok' | 'bad' | 'mid' | 'none'; line?: string };
-  const mood = $derived.by((): Mood => {
-    if (!r || !r.answered) return { art: 'bear-clock', title: 'Keine Antwort', tone: 'bad', line: 'Beim nächsten Mal schneller!' };
-    if (r.correct === null) return { art: 'bear-wave', title: 'Danke für deine Stimme!', tone: 'none' };
+  const verdict = $derived.by((): Verdict => {
+    if (!r || !r.answered) return { title: 'Keine Antwort', tone: 'bad', pool: RESULT.none };
+    if (r.correct === null) return { title: 'Danke für deine Stimme!', tone: 'none', pool: RESULT.poll };
     if (q.scoring === 'proximity') {
-      if (r.fraction >= 0.9) return { art: 'bear-cheer', title: 'Volltreffer!', tone: 'ok' };
-      if (r.correct) return { art: 'bear-cheer', title: 'Nah dran!', tone: 'ok' };
-      if (r.fraction > 0) return { art: 'bear-think', title: 'Knapp daneben', tone: 'mid', line: 'Ein paar Punkte gibt es trotzdem.' };
-      return { art: 'herry-laugh', title: 'Daneben', tone: 'bad', line: TEASE[q.index % TEASE.length] };
+      if (r.fraction >= 0.9) return { title: 'Volltreffer!', tone: 'ok', pool: RESULT.bullseye };
+      if (r.correct) return { title: 'Nah dran!', tone: 'ok', pool: RESULT.close };
+      if (r.fraction > 0) return { title: 'Knapp daneben', tone: 'mid', pool: RESULT.near };
+      return { title: 'Daneben', tone: 'bad', pool: RESULT.wrong };
     }
-    if (r.correct) return { art: 'bear-cheer', title: 'Richtig!', tone: 'ok' };
-    if (r.fraction > 0) return { art: 'bear-think', title: 'Teilweise richtig', tone: 'mid' };
-    return { art: 'herry-laugh', title: 'Leider falsch', tone: 'bad', line: TEASE[q.index % TEASE.length] };
+    if (r.correct) return { title: 'Richtig!', tone: 'ok', pool: s.me.streak >= 3 ? RESULT.streak : RESULT.correct };
+    if (r.fraction > 0) return { title: 'Teilweise richtig', tone: 'mid', pool: RESULT.partial };
+    return { title: 'Leider falsch', tone: 'bad', pool: RESULT.wrong };
   });
 
+  // Jeder Spieler startet an anderer Stelle im Pool, mit jeder Frage geht es einen Schritt weiter
+  const mood = $derived(pick(verdict.pool, seedOf(s.me.id), q.index));
   const total = $derived((r?.points ?? 0) + (r?.bonus ?? 0));
 </script>
 
@@ -39,17 +36,17 @@
   <div class="center">
     {#key q.index}
       <Sticker name={mood.art} small class="hero pop-in" />
-      <div class="card verdict {mood.tone} pop-in">
+      <div class="card verdict {verdict.tone} pop-in">
         <h2>
-          {#if mood.tone === 'ok'}<span class="badge"><Icon name="check" /></span>
-          {:else if mood.tone === 'bad'}<span class="badge"><Icon name="cross" /></span>{/if}
-          {mood.title}
+          {#if verdict.tone === 'ok'}<span class="badge"><Icon name="check" /></span>
+          {:else if verdict.tone === 'bad'}<span class="badge"><Icon name="cross" /></span>{/if}
+          {verdict.title}
         </h2>
         {#if q.scoring !== 'none'}
           <p class="points">+{total} <small>Punkte</small></p>
           {#if r?.bonus}<p class="bonus"><Icon name="flame" /> davon {r.bonus} Serien-Bonus</p>{/if}
         {/if}
-        {#if mood.line}<p class="line">{mood.line}</p>{/if}
+        <p class="line">{mood.line}</p>
       </div>
       {#if s.me.streak >= 2}
         <p class="pill streak pop-in"><Icon name="flame" /> {s.me.streak}er-Serie!</p>
