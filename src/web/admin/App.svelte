@@ -332,9 +332,13 @@
     overflow-y: auto;
   }
   .page {
-    max-width: 62rem;
+    max-width: 64rem;
+    min-height: 100vh;
     margin: 0 auto;
-    padding: 1rem 1.2rem 4rem;
+    padding: 1rem 1.6rem 4rem;
+    /* helle Fläche: Überschriften und Links bleiben auf dem Hintergrundbild lesbar */
+    background: rgba(255, 251, 240, 0.94);
+    box-shadow: 0 0 3rem rgba(52, 28, 6, 0.28);
   }
   .top {
     display: flex;

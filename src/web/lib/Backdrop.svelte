@@ -15,7 +15,7 @@
   } = $props();
 </script>
 
-<div class="backdrop {variant}" aria-hidden="true">
+<div class="backdrop v-{variant}" aria-hidden="true">
   <div class="scene"></div>
   <div class="light"></div>
   <div class="comb"></div>
@@ -50,7 +50,7 @@
   .scene {
     background: url('/art/bg-host.webp') center / cover no-repeat;
   }
-  .phone .scene {
+  .v-phone .scene {
     background-image: url('/art/bg-phone.webp');
   }
   /* Lichtfleck hinter dem Inhalt, Vignette in den Ecken */
@@ -59,10 +59,22 @@
       radial-gradient(ellipse 60% 56% at 50% 47%, rgba(255, 252, 236, 0.86) 0%, rgba(255, 252, 236, 0.5) 46%, rgba(255, 252, 236, 0) 78%),
       radial-gradient(ellipse 78% 82% at 50% 50%, rgba(58, 30, 4, 0) 58%, rgba(58, 30, 4, 0.5) 100%);
   }
-  .phone .light {
+  .v-phone .light {
     background:
       radial-gradient(ellipse 95% 62% at 50% 46%, rgba(255, 252, 236, 0.9) 0%, rgba(255, 252, 236, 0.55) 50%, rgba(255, 252, 236, 0) 85%),
       radial-gradient(ellipse 95% 80% at 50% 50%, rgba(58, 30, 4, 0) 60%, rgba(58, 30, 4, 0.42) 100%);
+  }
+  /* Spieler-Seite auf einem breiten Bildschirm (Laptop, Tablet quer): das Querformat-Motiv,
+     sonst würde der Hochformat-Ausschnitt riesig aufgeblasen */
+  @media (min-aspect-ratio: 1/1) {
+    .v-phone .scene {
+      background-image: url('/art/bg-host.webp');
+    }
+    .v-phone .light {
+      background:
+        radial-gradient(ellipse 60% 56% at 50% 47%, rgba(255, 252, 236, 0.86) 0%, rgba(255, 252, 236, 0.5) 46%, rgba(255, 252, 236, 0) 78%),
+        radial-gradient(ellipse 78% 82% at 50% 50%, rgba(58, 30, 4, 0) 58%, rgba(58, 30, 4, 0.5) 100%);
+    }
   }
   /* Waben: doppelt so große Kacheln, zur Mitte hin ausgeblendet – nur in den Ecken sichtbar */
   .comb {

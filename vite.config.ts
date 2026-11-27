@@ -1,8 +1,23 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Connect, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { resolve } from 'node:path';
 
 const api = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
+
+// /admin und /host ohne Schrägstrich am Ende: Der Entwicklungs-Server von Vite würde sonst
+// stillschweigend die Spieler-Seite ausliefern. (Im gebauten Server leitet Express selbst um.)
+const addSlash: Connect.NextHandleFunction = (req, res, next) => {
+  const [path, query] = (req.url ?? '').split('?');
+  if (path !== '/admin' && path !== '/host') return next();
+  res.statusCode = 302;
+  res.setHeader('Location', `${path}/${query ? `?${query}` : ''}`);
+  res.end();
+};
+const trailingSlash = (): Plugin => ({
+  name: 'quizzlybear-trailing-slash',
+  configureServer: (server) => void server.middlewares.use(addSlash),
+  configurePreviewServer: (server) => void server.middlewares.use(addSlash),
+});
 
 // Drei getrennte Einstiege, damit das Handy nur den Spieler-Code lädt:
 //   /        Spieler (Handy)
@@ -11,7 +26,7 @@ const api = `http://127.0.0.1:${process.env.PORT ?? 3000}`;
 export default defineConfig({
   root: 'src/web',
   publicDir: 'public',
-  plugins: [svelte({ configFile: resolve('svelte.config.js') })],
+  plugins: [trailingSlash(), svelte({ configFile: resolve('svelte.config.js') })],
   build: {
     outDir: '../../dist/web',
     emptyOutDir: true,
