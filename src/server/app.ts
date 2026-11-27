@@ -5,6 +5,7 @@ import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type { Quiz } from '../shared/quiz';
 import {
+  checkLogin,
   endSession,
   hashPassword,
   loginBlocked,
@@ -41,6 +42,11 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
   app.disable('x-powered-by');
   if (config.trustProxy) app.set('trust proxy', 1);
 
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  });
+
   if (config.securityHeaders) {
     app.use((_req, res, next) => {
       res.setHeader('Content-Security-Policy', CSP);
@@ -55,13 +61,21 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     if (req.method === 'GET' || req.method === 'HEAD') return next();
     const origin = req.headers.origin;
     const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0].trim() ?? req.headers.host;
-    if (origin && new URL(origin).host !== host) {
-      return void res.status(403).json({ error: 'Fremde Herkunft.' });
+    if (origin) {
+      let same = false;
+      try {
+        same = new URL(origin).host === host;
+      } catch {
+        // „Origin: null“ (z. B. aus einem abgeschotteten iframe) oder Unsinn: nicht die eigene Seite
+      }
+      if (!same) return void res.status(403).json({ error: 'Fremde Herkunft.' });
     }
     next();
   });
 
-  const json = express.json({ limit: '64kb' });
+  // inflate: false – komprimierte Anfragen werden mit 415 abgelehnt statt ausgepackt. Damit erreichen
+  // fremde Daten nie den zlib-/Brotli-Decoder von Node (CVE-2026-111497 „Node2Shell“).
+  const json = express.json({ limit: '64kb', inflate: false });
   const auth = requireUser(db);
   const user = (req: Request) => (req as AuthedRequest).user;
 
@@ -97,8 +111,8 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     const ip = req.ip ?? 'unknown';
     if (loginBlocked(ip)) return void res.status(429).json({ error: 'Zu viele Versuche. Bitte warte ein paar Minuten.' });
     const { name, password } = req.body ?? {};
-    const u = typeof name === 'string' ? db.userByName(name.trim()) : undefined;
-    if (!u || typeof password !== 'string' || !verifyPassword(password, u.pass)) {
+    const u = checkLogin(db, name, password);
+    if (!u) {
       loginFailed(ip);
       return void res.status(401).json({ error: 'Name oder Passwort stimmt nicht.' });
     }
@@ -120,7 +134,11 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     if (typeof next !== 'string' || next.length < 8) {
       return void res.status(400).json({ error: 'Das neue Passwort braucht mindestens 8 Zeichen.' });
     }
+    if (next.length > 256) return void res.status(400).json({ error: 'Das neue Passwort ist zu lang.' });
     db.setPassword(user(req).id, hashPassword(next));
+    // Alle bisherigen Sitzungen enden – auch die eines Angreifers, der das alte Passwort kannte
+    db.deleteUserSessions(user(req).id);
+    startSession(db, res, user(req).id);
     res.json({ ok: true });
   });
 
@@ -135,8 +153,8 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     if (typeof name !== 'string' || !/^[\p{L}\p{N}._-]{2,32}$/u.test(name.trim())) {
       return void res.status(400).json({ error: 'Name: 2–32 Zeichen, Buchstaben, Ziffern, Punkt, Binde- oder Unterstrich.' });
     }
-    if (typeof password !== 'string' || password.length < 8) {
-      return void res.status(400).json({ error: 'Das Passwort braucht mindestens 8 Zeichen.' });
+    if (typeof password !== 'string' || password.length < 8 || password.length > 256) {
+      return void res.status(400).json({ error: 'Das Passwort braucht 8 bis 256 Zeichen.' });
     }
     if (db.userByName(name.trim())) return void res.status(409).json({ error: 'Diesen Namen gibt es schon.' });
     const id = db.addUser(name.trim(), hashPassword(password), !!admin);
@@ -193,6 +211,7 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
   const upload = express.raw({
     type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream', 'application/json'],
     limit: config.maxUploadBytes,
+    inflate: false,
   });
 
   const handleUpload = async (req: Request, res: Response, replace?: QuizRow) => {
@@ -266,6 +285,7 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
     const row = db.quiz(Number(req.body?.quizId));
     if (!row || !canSee(req, row)) return void res.status(404).json({ error: 'Quiz nicht gefunden.' });
     const game = games.create(JSON.parse(row.json) as Quiz, row.id, user(req).id);
+    if (!game) return void res.status(429).json({ error: 'Es laufen schon zu viele Spiele. Bitte erst ein altes beenden.' });
     res.status(201).json(gameInfo(game));
   });
 
@@ -298,6 +318,8 @@ export function createApp({ db, games, webDir, schemaDir }: AppDeps) {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err?.type === 'entity.too.large') return void res.status(413).json({ error: 'Die Datei ist zu groß.' });
     if (err?.type === 'entity.parse.failed') return void res.status(400).json({ error: 'Ungültiges JSON.' });
+    if (err?.status === 415) return void res.status(415).json({ error: 'Komprimierte Anfragen werden nicht angenommen.' });
+    if (err?.status === 400) return void res.status(400).json({ error: 'Ungültige Anfrage.' });
     console.error(err);
     res.status(500).json({ error: 'Interner Fehler.' });
   });

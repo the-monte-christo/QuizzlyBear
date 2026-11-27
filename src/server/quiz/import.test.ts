@@ -152,7 +152,7 @@ describe('importQuiz', () => {
 
   it('lehnt Bild-URLs ins interne Netz ab', async () => {
     const q = base();
-    q.questions[0].image = 'http://127.0.0.1:9/geheim.png';
+    q.questions[0].image = 'http://127.0.0.1/geheim.png';
     const err = await failure(importQuiz(json(q), { dataDir }));
     expect(err.errors[0].message).toContain('internen Netz');
   });
@@ -195,6 +195,42 @@ describe('importQuiz', () => {
     } finally {
       server.close();
     }
+  });
+
+  it('lässt sich von einem ZIP mit gelogener Größenangabe nicht aufblähen', async () => {
+    const q = base();
+    q.questions[0].image = 'img/bombe.png';
+    const zeros = new Uint8Array(8 * 1024 * 1024); // komprimiert wenige Kilobyte
+    const honest = zipSync({ 'quiz.json': strToU8(JSON.stringify(q)), 'img/bombe.png': zeros }, { level: 9 });
+    expect(honest.length).toBeLessThan(64 * 1024);
+
+    // Größenfelder (Dateikopf und Verzeichnis) auf 1000 Byte fälschen
+    const lying = new Uint8Array(honest);
+    const view = new DataView(lying.buffer);
+    let patched = 0;
+    for (let i = 0; i + 4 <= lying.length; i++) {
+      if (view.getUint32(i, true) === zeros.length) {
+        view.setUint32(i, 1000, true);
+        patched++;
+      }
+    }
+    expect(patched).toBe(2);
+    // Entpackt wird höchstens die angegebene Größe; übrig bleibt ein kaputtes „Bild“, kein Speicherfresser
+    const before = process.memoryUsage().rss;
+    const err = await failure(importQuiz(Buffer.from(lying), { dataDir }));
+    expect(err.errors[0].message).toContain('kein verwendbares Bild');
+    expect(process.memoryUsage().rss - before).toBeLessThan(6 * 1024 * 1024);
+  });
+
+  it('lehnt ZIPs ab, die entpackt über der Grenze liegen, und Dateitypen außerhalb der Liste', async () => {
+    const q = base();
+    q.questions[0].image = 'img/gross.png';
+    const big = zipSync({ 'quiz.json': strToU8(JSON.stringify(q)), 'img/gross.png': new Uint8Array(101 * 1024 * 1024) }, { level: 1 });
+    expect((await failure(importQuiz(Buffer.from(big), { dataDir }))).message).toContain('zu groß');
+
+    q.questions[0].image = 'img/plan.svg';
+    const svg = zip({ 'quiz.json': strToU8(JSON.stringify(q)), 'img/plan.svg': strToU8('<svg xmlns="http://www.w3.org/2000/svg"/>') });
+    expect((await failure(importQuiz(svg, { dataDir }))).errors[0].message).toContain('Dateityp, der nicht unterstützt wird');
   });
 
   it('meldet kaputtes JSON, fehlende quiz.json und Schemafehler', async () => {

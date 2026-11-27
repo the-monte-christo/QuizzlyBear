@@ -33,7 +33,7 @@ Handy. Durch die Runde führen Quizzly, der Quizzlybär, und sein frecher Partne
 
 ## Loslegen (lokal)
 
-Voraussetzung: Node.js 22 oder neuer.
+Voraussetzung: Node.js 22.23.5, 24.22.3 oder neuer (ältere Versionen starten lokal mit einer Warnung).
 
 ```bash
 npm install
@@ -139,6 +139,29 @@ in `index.ts`, `player.ts`, `host.ts` und `labels.ts` eintragen, den Typnamen in
 
 Der Browser-Durchlauf bedient jeden Fragetyp wirklich, lädt ein Handy mitten in der Frage neu und
 bricht bei Konsolenfehlern ab. Mit `--4k` läuft der Host in 3840 × 2160.
+
+## Sicherheit
+
+- **Node-Version:** Im Produktionsmodus startet der Server nur mit einer Node-Version ab dem
+  Sicherheits-Release vom 11.11.2026 (22.23.5, 24.22.3, 26.13.1). Anlass ist CVE-2026-111497
+  („Node2Shell“), ein Speicherfehler im Brotli-Decoder von Node. Das Docker-Image ist auf
+  `node:24.22.3` festgeschrieben. Lokal gibt es bei älterem Node nur eine Warnung.
+- **Keine Dekompression fremder Daten:** Komprimierte Anfragen lehnt der Server mit 415 ab. Bild-URLs
+  werden ohne automatische Dekompression geladen. Socket-Nachrichten laufen unkomprimiert.
+- **Bilder:** Nur JPEG, PNG, WebP, GIF und AVIF, erkannt an der Dateisignatur. SVG, TIFF und HEIF
+  erreichen die Bildbibliothek nicht. Höchstens 60 Megapixel je Bild.
+- **Bild-URLs:** Ziele im internen Netz, andere Ports als 80 und 443 und Adressen mit Zugangsdaten
+  werden abgelehnt. Verbunden wird mit genau der Adresse, die vorher geprüft wurde.
+- **Uploads:** Nur für angemeldete Quizmaster. Höchstens 40 MB, entpackt 100 MB und 600 Dateien.
+- **Anmeldung:** Passwörter mit scrypt gehasht, Sitzungen als HttpOnly-Cookie (SameSite=Lax, im
+  Produktionsmodus Secure). Acht Fehlversuche je Adresse in zehn Minuten, dann Pause. Ein
+  Passwortwechsel beendet alle Sitzungen des Kontos.
+- **Spielbetrieb:** Kontingente je Verbindung für Beitritt und Antworten, eine Bremse gegen das
+  Durchprobieren von PINs, höchstens 250 Spieler je Spiel, zehn Spiele je Quizmaster.
+- **Bewusst nicht abgesichert:** Mitspielen braucht nur die PIN, und die Antwortzeit misst das Handy
+  selbst. Wer schummeln will, kann das. So war es für Kollegenrunden gewünscht.
+
+Geprüft wird das meiste davon in `src/server/hardening.test.ts`.
 
 ## Umgebungsvariablen
 

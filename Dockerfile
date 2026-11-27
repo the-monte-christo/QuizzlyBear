@@ -1,7 +1,12 @@
 # QuizzlyBear – Produktions-Image. Gebaut wird vollständig im Container, auf dem Host ist nichts nötig.
 #   docker build -t quizzlybear:latest .
+#
+# Die Node-Version ist bewusst festgeschrieben: 24.22.3 ist das Sicherheits-Release vom 11.11.2026
+# und enthält die Korrektur für CVE-2026-111497 („Node2Shell“, Brotli-Decoder, behoben ab 24.22.1).
+# Bei jedem neuen Node-Sicherheits-Release hier und in src/server/runtime.ts nachziehen.
+ARG NODE_IMAGE=node:24.22.3-bookworm-slim
 
-FROM node:24-bookworm-slim AS build
+FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 # Nur für den Fall, dass es für better-sqlite3 kein fertiges Binary gibt. Die Werkzeuge bleiben in dieser Stufe.
 RUN apt-get update \
@@ -14,7 +19,7 @@ RUN npm run build \
  && npx vitest run --testTimeout 20000
 RUN npm prune --omit=dev
 
-FROM node:24-bookworm-slim
+FROM ${NODE_IMAGE}
 ENV NODE_ENV=production \
     PORT=3000 \
     DATA_DIR=/data

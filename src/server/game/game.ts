@@ -6,7 +6,7 @@
 // alle verbundenen Spieler geantwortet haben. Die Klasse kennt kein Socket.io – sie spricht
 // nur über GameIO, damit sie sich mit Fake-Timern testen lässt.
 
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Question, Quiz, QuizSettings } from '../../shared/quiz';
 import {
   COUNTDOWN_MS,
@@ -31,6 +31,12 @@ import { logicFor, type TypeLogic } from '../../types';
 export interface GameIO {
   host(event: string, payload: unknown): void;
   player(playerId: string, event: string, payload: unknown): void;
+}
+
+/** Vergleich ohne Laufzeit-Unterschied. */
+function sameSecret(given: unknown, expected: string): boolean {
+  if (typeof given !== 'string') return false;
+  return timingSafeEqual(createHash('sha256').update(given).digest(), createHash('sha256').update(expected).digest());
 }
 
 /** Pause zwischen „alle haben geantwortet“ und der Auflösung. */
@@ -106,7 +112,9 @@ export class Game {
   }
 
   addPlayer(rawName: string): { ok: true; id: string; token: string } | { ok: false; error: string } {
-    const name = String(rawName ?? '')
+    // Steuerzeichen und Richtungs-Umschalter raus: Sie könnten die Anzeige auf dem Host durcheinanderbringen
+    const name = (typeof rawName === 'string' ? rawName.slice(0, 200) : '')
+      .replace(/[\p{Cc}\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu, '')
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, MAX_NAME);
@@ -142,9 +150,14 @@ export class Game {
   }
 
   /** Prüft Spieler-ID + Token (Reconnect). */
-  authPlayer(id: string, token: string): boolean {
-    const p = this.players.get(id);
-    return !!p && p.token === token;
+  authPlayer(id: unknown, token: unknown): boolean {
+    const p = typeof id === 'string' ? this.players.get(id) : undefined;
+    return !!p && sameSecret(token, p.token);
+  }
+
+  /** Prüft den Host-Schlüssel. */
+  authHost(key: unknown): boolean {
+    return sameSecret(key, this.hostKey);
   }
 
   setConnected(id: string, connected: boolean) {

@@ -46,6 +46,11 @@ Entwicklungsrechner gibt es kein Docker); der Produktions-Build selbst ist lokal
   Versuch überschreibt ihn nicht.
 - **.env:** Wird von Docker wörtlich gelesen. Keine Anführungszeichen um Werte setzen.
 - **Port:** 3070, nur auf 127.0.0.1.
+- **Node-Version:** Das Image ist auf `node:24.22.3-bookworm-slim` festgeschrieben (enthält die
+  Korrektur für CVE-2026-111497). Mit einer älteren Version startet die App im Produktionsmodus
+  nicht. Bei einem neuen Node-Sicherheits-Release die Version im `Dockerfile` und in
+  `src/server/runtime.ts` anheben und neu bauen.
+- **Komprimierte Anfragen:** nginx und die App lehnen jede Anfrage mit `Content-Encoding` ab (415).
 - **Speicher:** `mem_limit: 384m`. Uploads sind auf 40 MB begrenzt (`MAX_UPLOAD_MB`), nginx lässt
   auf `/api/quizzes` 45 MB durch.
 - **Caddy statt nginx:** Die ursprüngliche Aufgabenstellung nennt Caddy. Auf dem Server läuft

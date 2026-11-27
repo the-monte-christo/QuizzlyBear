@@ -17,8 +17,27 @@ export function verifyPassword(password: string, stored: string): boolean {
   const [scheme, salt, hash] = stored.split('$');
   if (scheme !== 'scrypt' || !salt || !hash) return false;
   const expected = Buffer.from(hash, 'base64url');
+  if (expected.length < 16) return false;
   const actual = scryptSync(password, Buffer.from(salt, 'base64url'), expected.length);
   return timingSafeEqual(actual, expected);
+}
+
+/** Vergleich ohne Laufzeit-Unterschied – für Tokens und Schlüssel. */
+export function safeEqual(a: unknown, b: string): boolean {
+  if (typeof a !== 'string') return false;
+  const x = createHash('sha256').update(a).digest();
+  const y = createHash('sha256').update(b).digest();
+  return timingSafeEqual(x, y);
+}
+
+// Auch bei unbekanntem Namen wird ein Hash gerechnet: Die Antwortzeit verrät sonst, welche Namen es gibt.
+const DUMMY_HASH = hashPassword(randomBytes(16).toString('hex'));
+
+export function checkLogin(db: Db, name: unknown, password: unknown): UserRow | undefined {
+  const user = typeof name === 'string' && name.length <= 64 ? db.userByName(name.trim()) : undefined;
+  const given = typeof password === 'string' && password.length <= 256 ? password : '';
+  const ok = verifyPassword(given, user?.pass ?? DUMMY_HASH);
+  return ok && user ? user : undefined;
 }
 
 /** In der Datenbank liegt nur der Hash des Sitzungs-Tokens. */
@@ -76,12 +95,22 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 /** Einfache Bremse gegen Passwort-Raten: max. 8 Fehlversuche je IP in 10 Minuten. */
 const fails = new Map<string, { n: number; until: number }>();
+const MAX_TRACKED = 10_000;
 export function loginBlocked(ip: string): boolean {
   const f = fails.get(ip);
   if (f && f.until < Date.now()) fails.delete(ip);
   return (fails.get(ip)?.n ?? 0) >= 8;
 }
 export function loginFailed(ip: string) {
+  if (fails.size >= MAX_TRACKED) {
+    // Die Tabelle darf nicht unbegrenzt wachsen: Abgelaufenes zuerst, notfalls die ältesten Einträge
+    const now = Date.now();
+    for (const [key, f] of fails) if (f.until < now) fails.delete(key);
+    for (const key of fails.keys()) {
+      if (fails.size < MAX_TRACKED) break;
+      fails.delete(key);
+    }
+  }
   const f = fails.get(ip) ?? { n: 0, until: Date.now() + 10 * 60 * 1000 };
   f.n++;
   fails.set(ip, f);

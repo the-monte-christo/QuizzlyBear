@@ -31,7 +31,7 @@ const FETCH_PARALLEL = 4;
 /** Gesamtzeit für das Laden aller Bild-URLs – bleibt unter dem Timeout des Reverse Proxys. */
 const REMOTE_BUDGET_MS = 90_000;
 const MAX_ENTRIES = 600;
-const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|tiff?|heic|heif)$/i;
+const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif)$/i;
 const isUrl = (s: string) => /^https?:\/\//i.test(s);
 const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.?\//, '').replace(/\/+/g, '/');
 
@@ -129,7 +129,9 @@ export async function importQuiz(body: Buffer, opts: ImportOptions): Promise<Imp
       job = Promise.reject(new Error('Bildpfade funktionieren nur im ZIP. In einer reinen quiz.json bitte eine Bild-URL (https://…) angeben.'));
     } else {
       const key = lower.get(norm(ref).toLowerCase());
-      if (!key) {
+      if (!IMAGE_EXT.test(ref)) {
+        job = Promise.reject(new Error(`„${ref}“ hat einen Dateityp, der nicht unterstützt wird. Erlaubt sind JPEG, PNG, WebP, GIF und AVIF.`));
+      } else if (!key) {
         job = Promise.reject(new Error(`Das Bild „${ref}“ fehlt im ZIP.`));
       } else {
         used.add(key);

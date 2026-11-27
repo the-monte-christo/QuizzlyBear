@@ -4,6 +4,9 @@ import { Game, type GameIO } from './game';
 
 const IDLE_LIMIT_MS = 4 * 60 * 60 * 1000; // Spiele ohne Aktivität
 const FINAL_LIMIT_MS = 60 * 60 * 1000; // beendete Spiele bleiben noch eine Stunde sichtbar
+/** Obergrenzen, damit niemand den Arbeitsspeicher mit Spielen füllen kann. */
+export const MAX_GAMES = 100;
+export const MAX_GAMES_PER_OWNER = 10;
 
 /** Hält alle laufenden Spiele im Speicher (ein Node-Prozess, kein Cluster). */
 export class GameManager {
@@ -15,7 +18,9 @@ export class GameManager {
     this.sweep.unref();
   }
 
-  create(quiz: Quiz, quizId: number, ownerId: number): Game {
+  create(quiz: Quiz, quizId: number, ownerId: number): Game | undefined {
+    this.cleanup();
+    if (this.games.size >= MAX_GAMES || this.byOwner(ownerId).length >= MAX_GAMES_PER_OWNER) return undefined;
     let pin: string;
     do pin = String(randomInt(100000, 1000000));
     while (this.games.has(pin));

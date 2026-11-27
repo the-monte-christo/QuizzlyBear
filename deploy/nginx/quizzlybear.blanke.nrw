@@ -42,6 +42,12 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Die App verschickt und erwartet nie komprimierte Anfragen. So erreicht keine den Decoder in Node
+    # (zweite Sicherung gegen CVE-2026-111497; die App lehnt sie selbst auch ab).
+    if ($http_content_encoding) {
+        return 415;
+    }
+
     client_max_body_size 64k;
     gzip on;
     gzip_vary on;
